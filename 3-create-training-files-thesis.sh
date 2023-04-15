@@ -1,7 +1,22 @@
 #!/bin/bash
-set -x
+set +x
 
 echo "Creating training files (thesis version).. "
+
+echo $*
+
+if [[ $* == *--install_packages* ]]
+then
+ echo "re building specter packages..."
+ set -x
+ python setup.py install > /dev/null
+else
+  echo "not rebuilding specter packages"
+fi
+
+
+set +x
+
 
 if [[ ! $* == *--demo* ]]
 then
