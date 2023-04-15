@@ -516,6 +516,12 @@ if __name__ == '__main__':
     init_logger()
     logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
+    logger.info("data_file: {}".format(data_file))
+    logger.info("train_ids: {}".format(train_ids))
+    logger.info("test_ids: {}".format(test_ids))
+    logger.info("val_ids: {}".format(val_ids))
+    logger.info("bert_vocab path: {}".format(args.bert_vocab))
+
     main([data_file], [train_ids], [val_ids], [test_ids], metadata_file, args.outdir, args.njobs, args.njobs_raw,
          margin_fraction=args.margin_fraction, ratio_hard_negatives=args.ratio_hard_negatives,
          samples_per_query=args.samples_per_query, comment=args.comment, bert_vocab=args.bert_vocab,
