@@ -2,11 +2,10 @@
 set +x
 
 echo "Remember to build specter package if you have made changes to files under specter/ directory"
-
 echo "Creating training files (thesis version).. "
 
+# RE-INSTALL SPECTER PACKAGES UNDER PATH specter/
 echo $*
-
 if [[ $* == *--install_packages* ]]
 then
  echo "re building specter packages..."
@@ -17,9 +16,9 @@ else
 fi
 
 
+
+# RUN THE TRAINING SCRIPT
 set +x
-
-
 if [[ ! $* == *--demo* ]]
 then
   echo "Using full data for training..."
