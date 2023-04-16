@@ -24,6 +24,13 @@ Full version
 
 ### Run training script 
 
+
+## TODOs 
+- In SPECTER the data/vocab/ dir contains tokens and other text files. 
+- tokens.txt length is around 240k 
+- Instead scibert vocab.txt length is around 30k => Why there is a mismatch. 
+
+
 ```bash
 Demo version
 ./4-run-training-script-thesis.sh --demo

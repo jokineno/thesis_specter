@@ -19,7 +19,7 @@ then
   --cuda-device -1
 else
 
-  echo "Using demo samples for training.. ====[NOT THE REAL FULL DATA]===="
+  echo "Using DEMO samples for training.. ====[NOT THE REAL FULL DATA]===="
   ./scripts/run-exp-simple.sh \
   -c experiment_configs/simple_thesis.jsonnet \
   -s thesis-model-output/ \
@@ -27,7 +27,10 @@ else
   --batch-size 4 \
   --train-path thesis_data/preprocessed_demo/data-train.p \
   --dev-path thesis_data/preprocessed_demo/data-val.p \
-  --num-train-instances 60 \
+  --bert-vocab thesis_data/finnish_bert_cased/vocab.txt \
+  --bert-weights thesis_data/finnish_bert_based/finnish_bert.tar.gz \
+  --vocab hf_model/ \
+  --num-train-instances 340 \
   --cuda-device -1
 fi
 
