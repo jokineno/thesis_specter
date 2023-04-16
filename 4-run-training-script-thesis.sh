@@ -10,7 +10,7 @@ then
   echo "Using all the samples for training.. ====[THIS IS THE FULL TRAINING]===="
   ./scripts/run-exp-simple.sh \
   -c experiment_configs/simple_thesis.jsonnet \
-  -s model-output/ \
+  -s thesis-model-output/ \
   --num-epochs 2 \
   --batch-size 4 \
   --train-path thesis_data/preprocessed/data-train.p \
@@ -22,11 +22,11 @@ else
   echo "Using demo samples for training.. ====[NOT THE REAL FULL DATA]===="
   ./scripts/run-exp-simple.sh \
   -c experiment_configs/simple_thesis.jsonnet \
-  -s model-output/ \
+  -s thesis-model-output/ \
   --num-epochs 2 \
   --batch-size 4 \
   --train-path thesis_data/preprocessed_demo/data-train.p \
-  --dev-path data/preprocessed_demo/data-val.p \
+  --dev-path thesis_data/preprocessed_demo/data-val.p \
   --num-train-instances 60 \
   --cuda-device -1
 fi
