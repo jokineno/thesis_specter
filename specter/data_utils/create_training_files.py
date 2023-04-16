@@ -375,7 +375,7 @@ def get_instances(data, query_ids_file, metadata, data_source=None, n_jobs=1, n_
         n_jobs_raw: number of jobs to generate raw triplets
         ratio_hard_negatives: how many hard nagatives
         margin_fraction: margin fraction param of triplet generation
-        samples_per_query: how many smaples for each query paper
+        samples_per_query: how many samples for each query paper
 
     Returns:
         List[Instance]
@@ -398,13 +398,14 @@ def get_instances(data, query_ids_file, metadata, data_source=None, n_jobs=1, n_
     instances_raw = [e for e in generator.get_raw_instances(
         query_ids, subset_name=query_ids_file.split('/')[-1][:-4], n_jobs=n_jobs_raw)]
 
+    logger.info("n_jobs: {}".format(n_jobs))
     if n_jobs == 1:
-        logger.info(f'converting raw instances to allennlp instances:')
+        logger.info(f'Converting raw instances to allennlp instances:')
         for e in tqdm.tqdm(instances_raw):
             yield get_instance(e)
 
     else:
-        logger.info(f'converting raw instances to allennlp instances ({n_jobs} parallel jobs)')
+        logger.info(f'Converting raw instances to allennlp instances ({n_jobs} parallel jobs)')
         with Pool(n_jobs) as p:
             instances = list(tqdm.tqdm(p.imap(
                 get_instance, instances_raw)))
@@ -458,9 +459,9 @@ def main(data_files, train_ids, val_ids, test_ids, metadata_file, outdir, n_jobs
 
         metrics = {}
         for ds_name, ds in zip(('train', 'val', 'test'), (train_set, val_set, test_set)):
-            logger.info(f'getting instances for `{data_source}` and `{ds_name}` set')
+            logger.info(f'Getting instances for `{data_source}` and `{ds_name}` set')
             outfile = f'{outdir}/{data_source}-{ds_name}.p'
-            logger.info(f'writing output {outfile}')
+            logger.info(f'Writing pickled output to {outfile}.')
             with open(outfile, 'wb') as f_in:
                 pickler = pickle.Pickler(f_in)
                 # pickler.fast = True
@@ -515,6 +516,12 @@ if __name__ == '__main__':
 
     init_logger()
     logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
+
+    logger.info("data_file: {}".format(data_file))
+    logger.info("train_ids: {}".format(train_ids))
+    logger.info("test_ids: {}".format(test_ids))
+    logger.info("val_ids: {}".format(val_ids))
+    logger.info("bert_vocab path: {}".format(args.bert_vocab))
 
     main([data_file], [train_ids], [val_ids], [test_ids], metadata_file, args.outdir, args.njobs, args.njobs_raw,
          margin_fraction=args.margin_fraction, ratio_hard_negatives=args.ratio_hard_negatives,

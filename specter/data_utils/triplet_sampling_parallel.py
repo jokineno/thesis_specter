@@ -63,7 +63,10 @@ def _get_triplet(query):
         if is_int(candidates[0][1]) and is_int(candidates[-1][1]) and coview_spread == 1:
             margin = np.ceil(margin)
     except IndexError as ie:
-        print("INDEX ERROR.")
+        print("-------.")
+        print("query: {}".format(query))
+        print("candidates for query: {}".format(candidates))
+        print("margin: {}".format(margin))
         raise Exception(ie)
 
     results = []
