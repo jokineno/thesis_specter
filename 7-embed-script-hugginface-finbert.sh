@@ -9,6 +9,8 @@
 # cat output.jsonl | jq 'select(.paper_id=="<paper_id>")'
 
 set -x
+export USE_HF_SPECIAL_TOKENS=True
+
 echo "Embedding samples with huggingface finbert model..."
 #python scripts/embed.py \
 #--ids data/sample.ids --metadata data/sample-metadata.json \

@@ -4,6 +4,8 @@ set +x
 echo "Remember to build specter package if you have made changes to files under specter/ directory"
 echo "Creating training files (thesis version).. "
 
+export USE_HF_SPECIAL_TOKENS=True
+
 # RE-INSTALL SPECTER PACKAGES UNDER PATH specter/
 echo $*
 if [[ $* == *--install_packages* ]]
