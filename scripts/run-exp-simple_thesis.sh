@@ -45,12 +45,13 @@ BERT_MODEL="bert-pretrained"
 BERT_VOCAB="thesis_data/finnish_bert_cased/vocab.txt"
 BERT_WEIGHTS="thesis_data/finnish_bert_cased/finnish_bert.tar.gz"
 
-VOCAB_DIR="data/vocab/"
+VOCAB_DIR="thesis_data/finnish_bert_cased/vocabulary/"
 INCLUDE_VENUE="false"
 
 # --------------
 
 while true; do
+    echo "Handling parameter $1"
     case "$1" in
         --train-path)
             TRAIN_PATH="$2"
