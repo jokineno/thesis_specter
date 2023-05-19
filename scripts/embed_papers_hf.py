@@ -47,6 +47,7 @@ class Dataset:
 class Model:
 
     def __init__(self, model_name="allenai/specter"):
+        print("Using model {}".format(model_name))
         self.model = AutoModel.from_pretrained(model_name)
         self.model.to('cpu')
         self.model.eval()

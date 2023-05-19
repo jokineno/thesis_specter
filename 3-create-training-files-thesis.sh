@@ -27,10 +27,10 @@ then
   python specter/data_utils/create_training_files.py \
     --data-dir thesis_data/training \
     --metadata thesis_data/training/metadata.json \
-    --outdir thesis_data/preprocessed/
+    --outdir thesis_data/preprocessed/ \
     --bert_vocab thesis_data/finnish_bert_cased/vocab.txt
   echo "Done. See results is thesis_data/preprocessed/"
-
+  exit 1 
 else
 
   echo "Using 100 DEMO samples for training..."
