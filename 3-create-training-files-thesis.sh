@@ -28,7 +28,9 @@ then
     --data-dir thesis_data/training \
     --metadata thesis_data/training/metadata.json \
     --outdir thesis_data/preprocessed/ \
-    --bert_vocab thesis_data/finnish_bert_cased/vocab.txt
+    --bert_vocab thesis_data/finnish_bert_cased/vocab.txt \
+    --njobs 1 \
+    --njobs_raw 12
   echo "Done. See results is thesis_data/preprocessed/"
   exit 1 
 else
