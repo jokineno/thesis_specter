@@ -152,7 +152,7 @@ def get_instance(paper):
 
     included_text_fields = set(_included_text_fields.split())
 
-    query_abstract_tokens = _tokenizer.tokenize(paper.get("query_abstract") or "")
+    query_abstract_tokens = _tokenizer.tokenize(paper.get("query_abstract") or "") #SHOULD I USE FINBERT TOKENIZER HERE?
     query_title_tokens = _tokenizer.tokenize(paper.get("query_title") or "")
 
     pos_abstract_tokens = _tokenizer.tokenize(paper.get("pos_abstract") or "")
@@ -522,6 +522,8 @@ if __name__ == '__main__':
     logger.info("test_ids: {}".format(test_ids))
     logger.info("val_ids: {}".format(val_ids))
     logger.info("bert_vocab path: {}".format(args.bert_vocab))
+    logger.info("njobs: {}".format(args.njobs))
+    logger.info("njobs_raw: {}".format(args.njobs_raw))
 
     main([data_file], [train_ids], [val_ids], [test_ids], metadata_file, args.outdir, args.njobs, args.njobs_raw,
          margin_fraction=args.margin_fraction, ratio_hard_negatives=args.ratio_hard_negatives,

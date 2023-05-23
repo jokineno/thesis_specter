@@ -42,15 +42,16 @@ TRAIN_PATH="data/training-data/train.pkl"
 DEV_PATH="data/training-data/val.pkl"
 
 BERT_MODEL="bert-pretrained"
-BERT_VOCAB="data/scibert_scivocab_uncased/vocab.txt"
-BERT_WEIGHTS="data/scibert_scivocab_uncased/scibert.tar.gz"
+BERT_VOCAB="thesis_data/finnish_bert_cased/vocab.txt"
+BERT_WEIGHTS="thesis_data/finnish_bert_cased/finnish_bert.tar.gz"
 
-VOCAB_DIR="data/vocab/"
+VOCAB_DIR="thesis_data/finnish_bert_cased/vocabulary/"
 INCLUDE_VENUE="false"
 
 # --------------
 
 while true; do
+    echo "Handling parameter $1"
     case "$1" in
         --train-path)
             TRAIN_PATH="$2"
@@ -125,7 +126,6 @@ done
 
 #echo "running experiment: $config_file, train_path: $TRAIN_PATH, coviews: $COVIEWS, cocites: $COCITES, copdfs: $COPDFS, epochs: $NUM_EPOCHS, vocab: $vocab, limit-training: $RatioTrainingSamples"
 
-set -x
 export TRAIN_PATH=$TRAIN_PATH
 export DEV_PATH=$DEV_PATH
 export VOCAB_DIR=$VOCAB_DIR
@@ -138,7 +138,6 @@ export BERT_REQUIRES_GRAD=$bert_requires_grad
 export BERT_MODEL=$BERT_MODEL
 export MAX_SEQ_LEN=$max_seq_len
 export INCLUDE_VENUE=$INCLUDE_VENUE
-
 if [ -z "${BERT_VOCAB+x}" ]
 then
     echo "Bert Weights Not Set"

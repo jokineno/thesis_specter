@@ -137,4 +137,6 @@ src/
 /hf_model/
 /data/
 /thesis_data/
+/thesis-model-output/
 *.jsonl
+/models/
