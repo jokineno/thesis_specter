@@ -18,7 +18,10 @@ then
   --batch-size 4 \
   --train-path thesis_data/preprocessed/data-train.p \
   --dev-path thesis_data/preprocessed/data-val.p \
-  --num-train-instances 60 \
+  --bert-vocab thesis_data/finnish_bert_cased/vocab.txt \
+  --bert-weights thesis_data/finnish_bert_cased/finnish_bert.tar.gz \
+  --vocab thesis_data/finnish_bert_cased/vocabulary \
+  --num-train-instances 35 \
   --cuda-device -1
 else
 
@@ -38,7 +41,7 @@ else
   --bert-vocab thesis_data/finnish_bert_cased/vocab.txt \
   --bert-weights thesis_data/finnish_bert_cased/finnish_bert.tar.gz \
   --vocab thesis_data/finnish_bert_cased/vocabulary \
-  --num-train-instances 340 \
+  --num-train-instances 35 \
   --cuda-device -1
 fi
 
