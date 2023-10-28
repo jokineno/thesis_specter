@@ -140,3 +140,4 @@ src/
 /thesis-model-output/
 *.jsonl
 /models/
+login_to_puhti.sh
