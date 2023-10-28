@@ -3,10 +3,15 @@
 
 if [ -z $1 ]; then
   echo "No username argument given"
-  exit 1 
-fi 
+  USERNAME="ollijoki"
+  echo "Using $USERNAME as username"
+else
+ USERNAME=$1
+fi
+
+cat ~/UniHY/keys/puhti_password.txt
 
 
-USERNAME=$1
+
 echo "Logging in with username $USERNAME"
 ssh $USERNAME@puhti.csc.fi
