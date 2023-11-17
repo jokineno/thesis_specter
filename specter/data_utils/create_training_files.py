@@ -118,7 +118,7 @@ def set_values(max_sequence_length: Optional[int] = -1,
     global _included_text_fields
 
     if _tokenizer is None:  # if not initialized, initialize the tokenizers and token indexers
-        _tokenizer = WordTokenizer(word_splitter=BertBasicWordSplitter(do_lower_case=bert_params["do_lowercase"]))
+        _tokenizer = WordTokenizer(word_splitter=BertBasicWordSplitter(do_lower_case=bert_params["do_lowercase"])) # WHAT TOKENIZER SHOULD I USE HERE?
         _token_indexers = {"bert": PretrainedBertIndexer.from_params(Params(bert_params))}
         _token_indexer_author_id = {"tokens": SingleIdTokenIndexer(namespace='author')}
         _token_indexer_author_position = {"tokens": SingleIdTokenIndexer(namespace='author_positions')}

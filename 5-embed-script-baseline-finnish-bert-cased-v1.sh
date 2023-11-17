@@ -11,17 +11,32 @@
 set -x
 export USE_HF_SPECIAL_TOKENS=True
 
-echo "Embedding samples with baseline model..."
-python scripts/embed.py \
---ids thesis_data/inference_demo/sample.ids \
---metadata thesis_data/inference_demo/sample-metadata.json \
---model ./thesis_data/inference/models/finnish_bert_base_cased_v1/finnish_bert.tar.gz \
---output-file thesis_data/inference_demo/results/output_baseline_finnish_bert.jsonl \
---vocab-dir thesis_data/finnish_bert_cased/vocabulary/ \
---batch-size 16 \
---cuda-device -1
-# 0 = use GPU, -1 = use CPU
-
+if [[ ! $* == *--demo* ]]
+then
+  echo "[*] FULL Embedding samples with baseline model..."
+  OUTPUT_FILE="./thesis_data/inference/results/output_baseline_finnish_bert.jsonl"
+  python scripts/embed.py \
+  --ids thesis_data/inference/sample.ids \
+  --metadata thesis_data/inference/sample-metadata.json \
+  --model ./thesis_data/inference/models/finnish_bert_base_cased_v1/finnish_bert.tar.gz \
+  --output-file $OUTPUT_FILE \
+  --vocab-dir thesis_data/finnish_bert_cased/vocabulary/ \
+  --batch-size 16 \
+  --cuda-device -1
+  # 0 = use GPU, -1 = use CPU
+else
+  echo "[*] DEMO Embedding samples with baseline model..."
+  OUTPUT_FILE="./thesis_data/inference_demo/results/output_baseline_finnish_bert.jsonl"
+  python scripts/embed.py \
+  --ids thesis_data/inference_demo/sample.ids \
+  --metadata thesis_data/inference_demo/sample-metadata.json \
+  --model ./thesis_data/inference/models/finnish_bert_base_cased_v1/finnish_bert.tar.gz \
+  --output-file $OUTPUT_FILE \
+  --vocab-dir thesis_data/finnish_bert_cased/vocabulary/ \
+  --batch-size 16 \
+  --cuda-device -1
+  # 0 = use GPU, -1 = use CPU
+fi
 
 # The script is converted to shell script
 # python specter/predict_command.py predict

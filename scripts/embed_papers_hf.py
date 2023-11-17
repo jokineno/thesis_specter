@@ -66,8 +66,8 @@ def main():
     args = parser.parse_args()
     model_and_tokenizer = args.model_and_tokenizer
 
-    if model_and_tokenizer not in ['allenai/specter', "TurkuNLP/bert-base-finnish-cased-v1", "TurkuNLP/sbert-cased-finnish-paraphrase"]:
-        raise Exception("Invalid model_and_tokenizer argument")
+    if model_and_tokenizer not in ["TurkuNLP/bert-base-finnish-cased-v1", "TurkuNLP/sbert-cased-finnish-paraphrase"]:
+        raise Exception("Invalid model_and_tokenizer argument {}".format(model_and_tokenizer))
 
     print("Using model and tokenizer: '{}'".format(model_and_tokenizer))
     dataset = Dataset(data_path=args.data_path, batch_size=args.batch_size, tokenizer_name=args.model_and_tokenizer)

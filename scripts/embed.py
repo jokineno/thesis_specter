@@ -60,7 +60,7 @@ def main():
     if args.weights_file is not None:
         command.extend(['--weights-file', args.weights_file])
 
-    logging.info('running command:')
+    logging.info('[*] running command:')
     logging.info(' '.join(command))
     """
     THIS PRINTS OUT COMMAND: 

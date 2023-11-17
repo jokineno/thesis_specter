@@ -4,6 +4,7 @@ instead of `multiprocess`.
 This is for cases where the archived model is trained with multiprocess reader
 Main modification is the `predictor_from_archive` function
 """
+import os
 from itertools import islice
 from typing import List, Iterator, Optional, Dict, Any
 import argparse
@@ -144,8 +145,8 @@ def predictor_from_archive(archive: Archive, predictor_name: str = None,
 
 def _get_predictor(args: argparse.Namespace) -> Predictor:
     check_for_gpu(args.cuda_device)
-    print("[DEBUG]","args.weights_file:", args.weights_file)
-    print("[DEBUG]", "args.overrides", args.overrides)
+    print("[*] [DEBUG]", "args.weights_file:", args.weights_file)
+    print("[*] [DEBUG]", "args.overrides", args.overrides)
     archive = load_archive(args.archive_file,
                            weights_file=args.weights_file,
                            cuda_device=args.cuda_device,

@@ -141,3 +141,8 @@ src/
 *.jsonl
 /models/
 login_to_puhti.sh
+allennlp.zip
+/notebooks/
+puhti-script.sh
+/thesis-model-output-demo/
+thesis_data.zip

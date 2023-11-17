@@ -1,8 +1,10 @@
 #!/bin/bash
 
-echo "Starting training script..."
+set -x
 
-echo "Creating training files (thesis version).. "
+echo "[*] Starting training script..."
+
+echo "[*] Creating training files (thesis version).. "
 
 
 export USE_HF_SPECIAL_TOKENS=True
@@ -10,7 +12,18 @@ export USE_HF_SPECIAL_TOKENS=True
 if [[ ! $* == *--demo* ]]
 then
 
-  echo "Using all the samples for training.. ====[THIS IS THE FULL TRAINING]===="
+  echo "[*] Using all the samples for training.. ====[THIS IS THE FULL TRAINING]===="
+
+  OUTPUT_PATH="thesis-model-output"
+  rm -r $OUTPUT_PATH
+  echo "[*] Removed data with rm -r  ${OUTPUT_PATH}"
+
+  echo "[*] Make sure you have a correct number or training instances"
+  echo "[*] Reading number of training instances from thesis_data/preprocessed/data-metrics.json"
+  training_instances_count=$(cat thesis_data/preprocessed/data-metrics.json | jq .train)
+  echo "[*] Using $training_instances_count as training instances"
+  set -u
+
   ./scripts/run-exp-simple.sh \
   -c experiment_configs/simple_thesis.jsonnet \
   -s thesis-model-output/ \
@@ -21,19 +34,23 @@ then
   --bert-vocab thesis_data/finnish_bert_cased/vocab.txt \
   --bert-weights thesis_data/finnish_bert_cased/finnish_bert.tar.gz \
   --vocab thesis_data/finnish_bert_cased/vocabulary \
-  --num-train-instances 35 \
+  --num-train-instances $training_instances_count \
   --cuda-device -1
 else
 
-  echo "Using DEMO samples for training.. ====[NOT THE REAL FULL DATA]===="
-  OUTPUT_PATH="thesis-model-output"
+  echo "[*] Using DEMO samples for training.. ====[NOT THE REAL FULL DATA]===="
+  OUTPUT_PATH="thesis-model-output-demo"
   rm -r $OUTPUT_PATH
-  echo "Removed ${OUTPUT_PATH}"
+  echo "[*] Removed data with rm -r  ${OUTPUT_PATH}"
 
-
+  echo "[*] Make sure you have a correct number or training instances"
+  echo "[*] Reading number of training instances from thesis_data/preprocessed_demo/data-metrics.json"
+  training_instances_count=$(cat thesis_data/preprocessed_demo/data-metrics.json | jq .train)
+  echo "[*] Using $training_instances_count as training instances"
+  set -u
   ./scripts/run-exp-simple.sh \
   -c experiment_configs/simple_thesis.jsonnet \
-  -s thesis-model-output/ \
+  -s $OUTPUT_PATH/ \
   --num-epochs 2 \
   --batch-size 4 \
   --train-path thesis_data/preprocessed_demo/data-train.p \
@@ -41,8 +58,9 @@ else
   --bert-vocab thesis_data/finnish_bert_cased/vocab.txt \
   --bert-weights thesis_data/finnish_bert_cased/finnish_bert.tar.gz \
   --vocab thesis_data/finnish_bert_cased/vocabulary \
-  --num-train-instances 35 \
+  --num-train-instances $training_instances_count \
   --cuda-device -1
 fi
 
-echo "DONE. Training finished.."
+echo "[*] DONE. Training finished.."
+echo "[*] Next Step: See finetuned model in $OUTPUT_PATH"
