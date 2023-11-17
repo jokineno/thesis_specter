@@ -122,7 +122,7 @@ class DataReader(DatasetReader):
                  lazy: bool = False,
                  paper_features_path: str = None,
                  word_splitter: WordSplitter = None,
-                 tokenizer: Tokenizer = None,
+                 tokenizer: Tokenizer = None, # you should give the tokenizer related to HF model here.
                  token_indexers: Dict[str, TokenIndexer] = None,
                  data_file: Optional[str] = None,
                  samples_per_query: int = 5,
