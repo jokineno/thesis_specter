@@ -146,3 +146,5 @@ allennlp.zip
 puhti-script.sh
 /thesis-model-output-demo/
 thesis_data.zip
+/data/
+README_PUHTI.md

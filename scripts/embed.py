@@ -29,7 +29,7 @@ def main():
     parser.add_argument('--output-file', help='path to the output file')
     parser.add_argument('--cuda-device', default=0, type=str)
     parser.add_argument('--batch-size', default=1, type=str)
-    parser.add_argument('--vocab-dir', default='data/vocab/')
+    parser.add_argument('--vocab-dir', required=True)
     parser.add_argument('--included-text-fields', default='abstract title')
     parser.add_argument('--weights-file', default=None)
 

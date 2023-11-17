@@ -11,25 +11,19 @@
 set -x
 export USE_HF_SPECIAL_TOKENS=True
 
-
-if [[ ! $* == *--demo* ]]
-then
-  echo "[*] FULL Embedding samples with baseline model..."
-  OUTPUT_FILE="./thesis_data/inference/results/output_baseline_finnish_sbert.jsonl"
-
-  python scripts/embed.py \
-  --ids data/sample.ids \
-  --metadata data/sample-metadata.json \
-  --model ./model.tar.gz \
-  --output-file output_baseline.jsonl \
-  --vocab-dir data/vocab/ \
+ts=$(date +%Y%m%d_%H%M%S)
+output_filename="${ts}_baseline_finnishbert_cls_from_allennlp.jsonl"
+OUTPUT_FILE="./thesis_data/inference/results/$output_filename"
+python scripts/embed.py \
+  --ids thesis_data/inference_demo/sample.ids \
+  --metadata thesis_data/inference_demo/paper-metadata-cls.json \
+  --model ./thesis_data/inference/models/finnish_bert_base_cased_v1/finnish_bert.tar.gz \
+  --output-file $OUTPUT_FILE \
+  --vocab-dir thesis_data/finnish_bert_cased/vocabulary/ \
   --batch-size 16 \
-  --cuda-device -1 \
-  --weights-file ./model_data/weights.th
-  # 0 = use GPU, -1 = use CPU
-else
-
-fi
+  --cuda-device -1
+ # --weights-file ./model_data/weights.th
+# 0 = use GPU, -1 = use CPU
 
 # The script is converted to shell script
 # python specter/predict_command.py predict

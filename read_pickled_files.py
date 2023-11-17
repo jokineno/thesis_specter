@@ -5,7 +5,7 @@ import logging
 import pickle
 from pathlib import Path
 import os
-
+import jsonpickle
 logger = logging.getLogger(logging.basicConfig(level=logging.INFO))
 
 
@@ -23,7 +23,7 @@ def unpickle(input_path):
 
 def mkdir(path):
     if os.path.exists(path):
-        logger.info("Path {} exixts".format(path))
+        logger.info("Path {} exists".format(path))
     else:
         logger.info("Creating output path  {}".format(path))
         Path(path).mkdir(parents=True)
@@ -44,10 +44,12 @@ def main(folder, output_path):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dir", required=True)
-    ap.add_argument("--output_path", required=True)
-    args = ap.parse_args()
-
-    folder = args.dir
-    output_path = args.output_path
+    folder = "thesis_data/preprocessed_demo/"
+    output_path = "./thesis_data/preprocessed_demo/unpickled"
+    # ap.add_argument("--dir", required=True)
+    # ap.add_argument("--output_path", required=True)
+    # args = ap.parse_args()
+    #
+    # folder = args.dir
+    # output_path = args.output_path
     main(folder, output_path)

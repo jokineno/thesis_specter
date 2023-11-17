@@ -6,7 +6,7 @@ from common import setup_logging
 import pathlib
 logger = setup_logging()
 
-def main(model_name):
+def main(model_name, output_dir):
         logger.info("Model name: {}".format(model_name))
         try:
             model = transformers.AutoModel.from_pretrained(model_name)
@@ -16,7 +16,7 @@ def main(model_name):
             raise Exception("Failed loading model and tokenizer.")
 
         model_dir = "{}".format(model_name).replace("/", "_")
-        output_dir = "models/{}".format(model_dir)
+        output_dir = "{}/{}".format(output_dir, model_dir)
 
         if os.path.exists(output_dir):
             logger.info("Path {} exists. Not creating".format(output_dir))
@@ -43,7 +43,7 @@ def main(model_name):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", required=True)
+    ap.add_argument("--output", default="./models")
     args = ap.parse_args()
-    model = args.model
-    main(model)
+    main(args.model, args.output)
     logger.info("Finished")
