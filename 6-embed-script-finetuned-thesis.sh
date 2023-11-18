@@ -36,7 +36,7 @@ else
   --metadata "./thesis_data/inference_demo/paper-metadata-cls.json" \
   --model "./thesis-model-output-demo/model.tar.gz" \
   --output-file $OUTPUT_FILE \
-  --vocab-dir "./thesis_data/vocab/finnish_bert_cased/vocabulary/" \
+  --vocab-dir ".thesis_specter/thesis-model-output-demo/vocabulary/" \
   --batch-size 16 \
   --cuda-device -1 # 0 = use GPU, -1 = use CPU
 

@@ -38,10 +38,12 @@ else
   --output-file $OUTPUT_FILE \
   --vocab-dir thesis_data/finnish_bert_cased/vocabulary/ \
   --batch-size 16 \
-  --cuda-device -1 \
-  --weights-file ./models/TurkuNLP_bert-base-finnish-cased-v1/pytorch_model.bin
-  # 0 = use GPU, -1 = use CPU
+  --cuda-device -1
+    # 0 = use GPU, -1 = use CPU
 fi
+
+echo "[*] Done embedding samples with baseline model..."
+echo "[*] Output file: $OUTPUT_FILE"
 
 # The script is converted to shell script
 # python specter/predict_command.py predict

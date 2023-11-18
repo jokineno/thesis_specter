@@ -140,6 +140,8 @@ def predictor_from_archive(archive: Archive, predictor_name: str = None,
     model = archive.model
     model.eval()
 
+    print("[DEBUG] model: ", model)
+    print("[DEBUG] dataset_reader: ", dataset_reader)
     return Predictor.by_name(predictor_name)(model, dataset_reader)
 
 
