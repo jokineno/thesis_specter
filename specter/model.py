@@ -140,15 +140,10 @@ class Specter(Model):
                  ) -> None:
         super(Specter, self).__init__(vocab, regularizer)
 
-        for lbl in range(max_num_authors): # TODO SHOULD BE REMOVED
-            vocab.add_token_to_namespace(token=str(lbl), namespace='author_positions')
-
         self.text_field_embedder = text_field_embedder
-        self.venue_field_embedder = venue_field_embedder
         self.title_encoder = title_encoder
         self.abstract_encoder = abstract_encoder
         self.body_encoder = body_encoder
-        self.venue_encoder = venue_encoder
 
         self.predict_mode = predict_mode
 
@@ -169,24 +164,12 @@ class Specter(Model):
 
         if embedding_layer_norm:
             self.layer_norm_word_embedding = LayerNorm(self.title_encoder.get_input_dim())
-            self.layer_norm_word_embedding_venue = LayerNorm(self.venue_encoder.get_input_dim())
         self.embedding_layer_norm = embedding_layer_norm
 
         self.dropout = Dropout()
 
-        self.ignore_authors = ignore_authors
 
-        if not ignore_authors:
-            self.author_id_embedder = author_id_embedder
-            self.author_position_embedder = author_position_embedder
-            self.author_text_embedder = author_text_embedder
-            self.author_text_encoder = author_text_encoder
-            # author representation would be a concatenation of author-id and author-position
-            # [batch, num-authors, auth-dim + position-dim]
-            # we apply timedistributed mlp on top to make this a:
-            # [batch, num-authors, dim]
-            self.author_time_dist_ff = TimeDistributed(author_feedforward)
-
+      
         # internal variable showing that the title/abstract should be encoded with a transformer
         # do not change this as it should be by default `false` in this class
         # in the inheriting `PaperRepresentationTransoformer` class it is set to true in the constructor
@@ -201,11 +184,7 @@ class Specter(Model):
         initializer(self)
 
     def get_embedding_and_mask(self, text_field, embedder_type='generic'):
-        if embedder_type == 'author':
-            embedded_ = self.author_text_embedder(text_field)
-        elif embedder_type == 'venue':
-            embedded_ = self.venue_field_embedder(text_field)
-        elif embedder_type == 'generic':
+        if embedder_type == 'generic':
             embedded_ = self.text_field_embedder(text_field)
         else:
             raise TypeError(f"Unknown embedder type passed: {embedder_type}")
@@ -228,17 +207,7 @@ class Specter(Model):
         if self.dropout:
             encoded_title = self.dropout(encoded_title)
 
-        if self.include_venue:
-            embedded_venue, venue_mask = self.get_embedding_and_mask(venue, embedder_type='venue')
-            if self.embedding_layer_norm:
-                embedded_venue = self.layer_norm_word_embedding_venue(embedded_venue)
-            encoded_venue = self.venue_encoder(embedded_venue, venue_mask)
-            if self.dropout:
-                encoded_venue = self.dropout(encoded_venue)
-
-            paper_embedding = torch.cat((encoded_title, encoded_venue), -1)
-        else:
-            paper_embedding = encoded_title
+        paper_embedding = encoded_title
 
         return paper_embedding
 

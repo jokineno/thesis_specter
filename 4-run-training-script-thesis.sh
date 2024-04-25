@@ -24,7 +24,7 @@ then
   echo "[*] Using $training_instances_count as training instances"
   set -u
 
-  ./scripts/run-exp-simple.sh \
+  ./scripts/run-exp-simple_thesis.sh \
   -c experiment_configs/simple_thesis.jsonnet \
   -s thesis-model-output/ \
   --num-epochs 2 \
@@ -48,7 +48,7 @@ else
   training_instances_count=$(cat thesis_data/preprocessed_demo/data-metrics.json | jq .train)
   echo "[*] Using $training_instances_count as training instances"
   set -u
-  ./scripts/run-exp-simple.sh \
+  ./scripts/run-exp-simple_thesis.sh \
   -c experiment_configs/simple_thesis.jsonnet \
   -s $OUTPUT_PATH/ \
   --num-epochs 2 \

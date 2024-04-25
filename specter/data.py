@@ -34,10 +34,6 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 NO_VENUE_TEXT = '--no_venue--'
 
 
-@DatasetReader.register('thesis_data_reader_pickled')
-class DataReaderFromPickled(DatasetReader):
-    pass
-
 @DatasetReader.register("specter_data_reader_pickled")
 class DataReaderFromPickled(DatasetReader):
 
@@ -102,7 +98,7 @@ class DataReaderFromPickled(DatasetReader):
                                 # pos_title_tokens = get_text_tokens(pos_title_tokens, pos_abstract_tokens, abstract_delimiter)
                                 # neg_title_tokens = get_text_tokens(neg_title_tokens, neg_abstract_tokens, abstract_delimiter)
                                 # query_abstract_tokens = pos_abstract_tokens = neg_abstract_tokens = []
-                            for field_type in ['title', 'abstract', 'authors', 'author_positions']:
+                            for field_type in ['title', 'abstract']:
                                 field = paper_type + '_' + field_type
                                 if instance.fields.get(field):
                                     instance.fields[field].tokens = instance.fields[field].tokens[:self.max_sequence_length]
@@ -176,11 +172,6 @@ class DataReader(DatasetReader):
         self._word_splitter = word_splitter or SimpleWordSplitter()
         self._tokenizer = tokenizer or WordTokenizer(self._word_splitter)
         self._token_indexers = token_indexers or {"tokens": SingleIdTokenIndexer()}
-        self._token_indexer_author_id = {"tokens": SingleIdTokenIndexer(namespace='author')}
-        self._token_indexer_author_position = \
-            {"tokens": SingleIdTokenIndexer(namespace='author_positions')}
-
-        self._token_indexer_venue = {"tokens": SingleIdTokenIndexer(namespace='venue')}
         self._token_indexer_id = {"tokens": SingleIdTokenIndexer(namespace='id')}
 
         with open(paper_features_path) as f_in:
@@ -205,8 +196,6 @@ class DataReader(DatasetReader):
             self.dataset = None
             self.data_source = None
 
-        self.max_num_authors = max_num_authors
-
         self.triplet_generator = TripletGenerator(
             paper_ids=list(self.papers.keys()),
             coviews=self.dataset,
@@ -229,10 +218,9 @@ class DataReader(DatasetReader):
         self.use_paper_feature_cache = use_paper_feature_cache
 
         self.abstract_delimiter = [Token('[SEP]')]
-        self.author_delimiter = [Token('[unused0]')]
 
 
-    def _get_paper_features(self, paper: Optional[dict] = None) -> Tuple[List[Token], List[Token], List[Token], int, List[Token]]:
+    def _get_paper_features(self, paper: Optional[dict] = None) -> Tuple[List[Token], List[Token], List[Token]]:
         """ Given a paper, extract and tokenize abstract, title, venue and year"""
         if paper:
             paper_id = paper.get('paper_id')
@@ -253,56 +241,20 @@ class DataReader(DatasetReader):
                 title_tokens = self._tokenizer.tokenize(paper.get("title") or "")
                 if 'abstract' in self.included_text_fields:
                     title_tokens = get_text_tokens(title_tokens, abstract_tokens, self.abstract_delimiter)
-                if 'authors' in self.included_text_fields:
-                    author_text = ' '.join(paper.get("author-names") or [])
-                    author_tokens = self._tokenizer.tokenize(author_text)
-                    max_seq_len_title = self.max_sequence_length - 15  # reserve max 15 tokens for author names
-                    title_tokens = title_tokens[:max_seq_len_title] + self.author_delimiter + author_tokens
                 title_tokens = title_tokens[:self.max_sequence_length]
                 # abstract and title are identical (abstract won't be used in this case)
                 abstract_tokens = title_tokens
 
-            venue = self._tokenizer.tokenize(paper.get('venue') or NO_VENUE_TEXT)
-            year = paper.get('year') or 0
             body_tokens = self._tokenizer.tokenize(paper.get('body')) if 'body' in paper else None
-            features = abstract_tokens, title_tokens, venue, year, body_tokens
+            features = abstract_tokens, title_tokens, body_tokens
 
             if self.use_paper_feature_cache:
                 self.paper_feature_cache[paper_id] = features
 
             return features
         else:
-            return None, None, None, None, None
+            return None, None, None
 
-    def _get_author_field(self, authors: List[str]) -> Tuple[ListField, ListField]:
-        """
-        Get a Label field associated with authors along with their position
-        Args:
-            authors: list of authors
-
-        Returns:
-            authors and their positions
-        """
-        if authors == []:
-            authors = ['##']
-        authors = [self._tokenizer.tokenize(author) for author in authors]
-        if len(authors) > self.max_num_authors:
-            authors = authors[:self.max_num_authors - 1] + [authors[-1]]
-        author_field = ListField([TextField(author, token_indexers=self._token_indexer_author_id) for author in authors])
-
-        author_positions = []
-        for i, _ in enumerate(authors):
-            if i == 0:
-                author_positions.append(TextField(
-                    self._tokenizer.tokenize('00'), token_indexers=self._token_indexer_author_position))
-            elif i < len(authors) - 1:
-                author_positions.append(TextField(
-                    self._tokenizer.tokenize('01'), token_indexers=self._token_indexer_author_position))
-            else:
-                author_positions.append(TextField(
-                    self._tokenizer.tokenize('02'), token_indexers=self._token_indexer_author_position))
-        position_field = ListField(author_positions)
-        return author_field, position_field
 
     def get_hash(self, file_path):
         """
@@ -431,53 +383,26 @@ class DataReader(DatasetReader):
                          data_source: Optional[str] = None,
                          mixing_ratio: Optional[float] = None) -> Instance:
 
-        source_abstract_tokens, source_title_tokens, source_venue, source_year, source_body =\
+        source_abstract_tokens, source_title_tokens, source_body =\
             self._get_paper_features(source_paper)
-        pos_abstract_tokens, pos_title_tokens, pos_venue, pos_year, pos_body = \
+        pos_abstract_tokens, pos_title_tokens, pos_body = \
             self._get_paper_features(positive_paper)
-        neg_abstract_tokens, neg_title_tokens, neg_venue, neg_year, neg_body = \
+        neg_abstract_tokens, neg_title_tokens, neg_body = \
             self._get_paper_features(negative_paper)
-
-        source_author_tokens = None
-        pos_author_tokens = None
-        neg_author_tokens = None
-
-        source_author, source_author_position = self._get_author_field(source_paper.get('authors', []))
-        if positive_paper is not None:
-            pos_author, pos_author_position = self._get_author_field(positive_paper.get('authors', []))
-        if negative_paper is not None:
-            neg_author, neg_author_position = self._get_author_field(negative_paper.get('authors', []))
+       
         fields = {
             'source_abstract': TextField(source_abstract_tokens, self._token_indexers),
             'source_title': TextField(source_title_tokens, self._token_indexers),
-            'source_authors': source_author,
-            'source_author_positions': source_author_position,
-            'source_year': LabelField(source_year, skip_indexing=True, label_namespace='year'),
-            'source_venue': TextField(source_venue, self._token_indexer_venue),
             'source_paper_id': MetadataField(source_paper['paper_id']),
         }
 
-        if source_author_tokens is not None:
-            fields['source_author_text'] = TextField(source_author_tokens, self._token_indexers)
         if positive_paper:
             fields['pos_abstract'] = TextField(pos_abstract_tokens, self._token_indexers)
             fields['pos_title'] = TextField(pos_title_tokens, self._token_indexers)
-            fields['pos_authors'] = pos_author
-            fields['pos_author_positions'] = pos_author_position
-            if pos_author_tokens is not None:
-                fields['pos_author_text'] = pos_author_tokens
-            fields['pos_year'] = LabelField(pos_year, skip_indexing=True, label_namespace='year')
-            fields['pos_venue'] = TextField(pos_venue, self._token_indexer_venue)
             fields['pos_paper_id'] = MetadataField(positive_paper['paper_id'])
         if negative_paper:
             fields['neg_abstract'] = TextField(neg_abstract_tokens, self._token_indexers)
             fields['neg_title'] = TextField(neg_title_tokens, self._token_indexers)
-            fields['neg_authors'] = neg_author
-            fields['neg_author_positions'] = neg_author_position
-            if neg_author_tokens is not None:
-                fields['neg_author_text'] = neg_author_tokens
-            fields['neg_year'] = LabelField(neg_year, skip_indexing=True, label_namespace='year')
-            fields['neg_venue'] = TextField(neg_venue, self._token_indexer_venue)
             fields['neg_paper_id'] = MetadataField(negative_paper['paper_id'])
         if data_source:
             fields['data_source'] = MetadataField(data_source)

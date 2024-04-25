@@ -40,12 +40,7 @@ max_seq_len=256
 
 TRAIN_PATH="data/training-data/train.pkl"
 DEV_PATH="data/training-data/val.pkl"
-
 BERT_MODEL="bert-pretrained"
-BERT_VOCAB="thesis_data/finnish_bert_cased/vocab.txt"
-BERT_WEIGHTS="thesis_data/finnish_bert_cased/finnish_bert.tar.gz"
-
-VOCAB_DIR="thesis_data/finnish_bert_cased/vocabulary/"
 INCLUDE_VENUE="false"
 
 # --------------

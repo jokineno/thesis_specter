@@ -19,7 +19,7 @@ class SpecterPredictor(Predictor):
     @overrides
     def predict_json(self, paper: JsonDict) -> Dict:
         ret = {}
-        for key in ['paper_id', 'title', 'abstract', 'authors', 'venue']:
+        for key in ['paper_id', 'title', 'abstract']:
             try:
                 ret[key] = paper[key]
             except KeyError:
@@ -55,7 +55,7 @@ class SpecterPredictor(Predictor):
                 skipped_idx.append(idx)
                 continue
             skip = False
-            for key in ['paper_id', 'title', 'abstract', 'authors', 'venue']:
+            for key in ['paper_id', 'title', 'abstract']:
                 try:
                     paper[key] = json_dict[key]
                 except KeyError:
