@@ -44,7 +44,7 @@ def init_logger(*, fn=None):
 
 
 bert_params = {
-    "do_lowercase": "true",
+    "do_lowercase": "false",
     "pretrained_model": "data/scivocab_scivocab_uncased/vocab.txt",
     "use_starting_offsets": "true"
 }
@@ -61,9 +61,6 @@ NO_VENUE = '--no_venue--'
 # global variables
 _tokenizer = None
 _token_indexers = None
-_token_indexer_author_id = None
-_token_indexer_author_position = None
-_token_indexer_venue = None
 _token_indexer_id = None
 _max_sequence_length = None
 _concat_title_abstract = None
@@ -91,6 +88,8 @@ def set_values(max_sequence_length: Optional[int] = -1,
     global _included_text_fields
 
     if _tokenizer is None:  # if not initialized, initialize the tokenizers and token indexers
+        logger.info("Initializing tokenizers and token indexers")
+        logger.info("bert_params: {}".format(bert_params))
         _tokenizer = WordTokenizer(word_splitter=BertBasicWordSplitter(do_lower_case=bert_params["do_lowercase"])) # WHAT TOKENIZER SHOULD I USE HERE?
         _token_indexers = {"bert": PretrainedBertIndexer.from_params(Params(bert_params))}
         _token_indexer_id = {"tokens": SingleIdTokenIndexer(namespace='id')}
@@ -351,6 +350,7 @@ def main(data_files, train_ids, val_ids, test_ids, metadata_file, outdir, n_jobs
             Creates files corresponding to each data file
     """
     global bert_params
+    logger.info("Setting pretrained_model of bert_params to {}".format(bert_vocab))
     bert_params['pretrained_model'] = bert_vocab
 
     pathlib.Path(outdir).mkdir(parents=True, exist_ok=True)
@@ -368,6 +368,7 @@ def main(data_files, train_ids, val_ids, test_ids, metadata_file, outdir, n_jobs
 
         metrics = {}
         for ds_name, ds in zip(('train', 'val', 'test'), (train_set, val_set, test_set)):
+            start_time = time()
             logger.info(f'Getting instances for `{data_source}` and `{ds_name}` set')
             outfile = f'{outdir}/{data_source}-{ds_name}.p'
             logger.info(f'Writing pickled output to {outfile}.')
@@ -391,7 +392,10 @@ def main(data_files, train_ids, val_ids, test_ids, metadata_file, outdir, n_jobs
                     if idx % 2000 == 0:
                         pickler.clear_memo()
             metrics[ds_name] = idx
-        with open(f'{outdir}/{data_source}-metrics.json', 'w') as f_out2:
+            logger.info(f'Finished writing {idx} instances to {outfile}. Time taken: {time()-start_time:.2f} seconds')
+        metrics_output = f'{outdir}/{data_source}-metrics.json' 
+        with open(metrics_output, 'w') as f_out2:
+            logger.info("Writing metrics to file {}".format(metrics_output))
             json.dump(metrics, f_out2, indent=2)
 
 
@@ -434,8 +438,13 @@ if __name__ == '__main__':
     logger.info("njobs: {}".format(args.njobs))
     logger.info("njobs_raw: {}".format(args.njobs_raw))
 
+    start = time()
+    logger.info("Starting to create training files... at start time: {}".format(start))
     main([data_file], [train_ids], [val_ids], [test_ids], metadata_file, args.outdir, args.njobs, args.njobs_raw,
          margin_fraction=args.margin_fraction, ratio_hard_negatives=args.ratio_hard_negatives,
          samples_per_query=args.samples_per_query, comment=args.comment, bert_vocab=args.bert_vocab,
          concat_title_abstract=args.concat_title_abstract, included_text_fields=args.included_text_fields
          )
+    
+    end = time()
+    logger.info("Time taken: {} seconds ({} minutes)".format(end-start, round((end-start)/60, 2)))    
