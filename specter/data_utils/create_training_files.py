@@ -356,8 +356,10 @@ def main(data_files, train_ids, val_ids, test_ids, metadata_file, outdir, n_jobs
 
     for data_file, train_set, val_set, test_set in zip(data_files, train_ids, val_ids, test_ids):
         logger.info(f'loading data file: {data_file}')
+        data_load_start = time()
         with open(data_file) as f_in:
             data = json.load(f_in)
+        logger.info(f'loaded data file: {data_file} in {time()-data_load_start:.2f} seconds')
         data_source = data_file.split('/')[-1][:-5]  # e.g., coviews_v2012
         if comment:
             data_source += f'-{comment}'

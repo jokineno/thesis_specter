@@ -146,3 +146,5 @@ then
 else
     python -m allennlp.run train $config_file  --include-package specter -s $serialization_dir --recover
 fi
+
+echo "[*] ============Finished============" 

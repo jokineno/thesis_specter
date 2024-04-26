@@ -148,3 +148,11 @@ puhti-script.sh
 thesis_data.zip
 /data/
 README_PUHTI.md
+/pytorch_lightning_training_script/data/*
+/pytorch_lightning_training_script/save/*
+/pytorch_lightning_training_script/venv/*
+/pytorch_lightning_training_script/.vscode/*
+/pytorch_lightning_training_script/lightning_logs/*
+/.vscode/
+pytorch_code.zip
+zip_pytorch.sh
