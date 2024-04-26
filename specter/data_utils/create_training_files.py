@@ -20,7 +20,6 @@ from allennlp.data.tokenizers.word_splitter import WordSplitter, SimpleWordSplit
 from allennlp.training.util import datasets_from_params
 
 from multiprocessing import Pool
-import multiprocessing
 
 from specter.data_utils import triplet_sampling_parallel
 
@@ -44,13 +43,10 @@ def init_logger(*, fn=None):
 
 
 bert_params = {
-    "do_lowercase": "false",
-    "pretrained_model": "data/scivocab_scivocab_uncased/vocab.txt",
+    "do_lowercase": "false", # should be true for the thesis as the pretrained model is cased version 
+    "pretrained_model": "data/scivocab_scivocab_uncased/vocab.txt", # can be replaced with your own vocab
     "use_starting_offsets": "true"
 }
-
-NO_VENUE = '--no_venue--'
-
 
 # ---------------
 # instead of a class with its own constructor we define global variables
@@ -90,7 +86,7 @@ def set_values(max_sequence_length: Optional[int] = -1,
     if _tokenizer is None:  # if not initialized, initialize the tokenizers and token indexers
         logger.info("Initializing tokenizers and token indexers")
         logger.info("bert_params: {}".format(bert_params))
-        _tokenizer = WordTokenizer(word_splitter=BertBasicWordSplitter(do_lower_case=bert_params["do_lowercase"])) # WHAT TOKENIZER SHOULD I USE HERE?
+        _tokenizer = WordTokenizer(word_splitter=BertBasicWordSplitter(do_lower_case=bert_params["do_lowercase"]))
         _token_indexers = {"bert": PretrainedBertIndexer.from_params(Params(bert_params))}
         _token_indexer_id = {"tokens": SingleIdTokenIndexer(namespace='id')}
     _max_sequence_length = max_sequence_length
@@ -419,6 +415,7 @@ if __name__ == '__main__':
                                                                              'possible values: `title`, `abstract`, `authors`')
     args = ap.parse_args()
 
+
     data_file = os.path.join(args.data_dir, 'data.json')
     train_ids = os.path.join(args.data_dir, 'train.txt')
     val_ids = os.path.join(args.data_dir, 'val.txt')
@@ -430,6 +427,8 @@ if __name__ == '__main__':
     init_logger()
     logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
+    print("==="*50)
+    logger.info("All arguments: {}".format(args))
     logger.info("data_file: {}".format(data_file))
     logger.info("train_ids: {}".format(train_ids))
     logger.info("test_ids: {}".format(test_ids))
@@ -437,6 +436,8 @@ if __name__ == '__main__':
     logger.info("bert_vocab path: {}".format(args.bert_vocab))
     logger.info("njobs: {}".format(args.njobs))
     logger.info("njobs_raw: {}".format(args.njobs_raw))
+    print("==="*50)
+    print("\n\n")
 
     start = time()
     logger.info("Starting to create training files... at start time: {}".format(start))
