@@ -580,6 +580,8 @@ def main():
     else:
         args.gpus = int(args.gpus)
         args.total_gpus = args.gpus
+    
+    print("Gpus: ", args.gpus, args.total_gpus)
 
     if args.test_only:
         print('loading model...')
