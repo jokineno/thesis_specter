@@ -3,6 +3,9 @@
 # saner programming env: these switches turn some bugs into errors
 set -o errexit -o pipefail -o noclobber -o nounset
 
+set -u
+set -x 
+
 ! getopt --test > /dev/null
 if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
     echo 'I’m sorry, `getopt --test` failed in this environment.'
@@ -140,10 +143,15 @@ else
     export BERT_VOCAB=$BERT_VOCAB
     export BERT_WEIGHTS=$BERT_WEIGHTS
 fi
+
+
+echo "===========Triggering the python script to start training!!!!==========="
 if [ -z "${recover+x}" ]
 then
+    echo python -m allennlp.run train $config_file  --include-package specter -s $serialization_dir
     python -m allennlp.run train $config_file  --include-package specter -s $serialization_dir
 else
+    echo python -m allennlp.run train $config_file  --include-package specter -s $serialization_dir --recover
     python -m allennlp.run train $config_file  --include-package specter -s $serialization_dir --recover
 fi
 

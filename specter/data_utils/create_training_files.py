@@ -14,8 +14,9 @@ import tqdm
 from allennlp.common import Params
 from allennlp.data import DatasetReader, TokenIndexer, Token, Instance
 from allennlp.data.fields import TextField, MetadataField
-from allennlp.data.token_indexers import SingleIdTokenIndexer, PretrainedBertIndexer
+from allennlp.data.token_indexers import SingleIdTokenIndexer, PretrainedBertIndexer, PretrainedTransformerIndexer
 from allennlp.data.tokenizers import WordTokenizer
+from allennlp.data.tokenizers.pretrained_transformer_tokenizer import PretrainedTransformerTokenizer
 from allennlp.data.tokenizers.word_splitter import WordSplitter, SimpleWordSplitter, BertBasicWordSplitter
 from allennlp.training.util import datasets_from_params
 
@@ -43,8 +44,8 @@ def init_logger(*, fn=None):
 
 
 bert_params = {
-    "do_lowercase": "false", # should be true for the thesis as the pretrained model is cased version 
-    "pretrained_model": "data/scivocab_scivocab_uncased/vocab.txt", # can be replaced with your own vocab
+    "do_lowercase": False, # should be true for the thesis as the pretrained model is cased version 
+    "pretrained_model": "thesis_data/finnish_bert_cased/vocab.txt", # can be replaced with your own vocab
     "use_starting_offsets": "true"
 }
 
@@ -56,6 +57,7 @@ bert_params = {
 
 # global variables
 _tokenizer = None
+_tokenizer2 = None
 _token_indexers = None
 _token_indexer_id = None
 _max_sequence_length = None
@@ -76,6 +78,7 @@ def set_values(max_sequence_length: Optional[int] = -1,
     # we have this structure for efficiency reasons: to support multiprocessing
     # as multiprocessing with class methods is slower
     global _tokenizer
+    global _tokenizer2
     global _token_indexers
     global _token_indexer_id
     global _max_sequence_length
@@ -83,12 +86,16 @@ def set_values(max_sequence_length: Optional[int] = -1,
     global _data_source
     global _included_text_fields
 
+    # TurkuNLP/bert-base-finnish-cased-v1
     if _tokenizer is None:  # if not initialized, initialize the tokenizers and token indexers
         logger.info("Initializing tokenizers and token indexers")
         logger.info("bert_params: {}".format(bert_params))
-        _tokenizer = WordTokenizer(word_splitter=BertBasicWordSplitter(do_lower_case=bert_params["do_lowercase"]))
-        _token_indexers = {"bert": PretrainedBertIndexer.from_params(Params(bert_params))}
-        _token_indexer_id = {"tokens": SingleIdTokenIndexer(namespace='id')}
+        _tokenizer2 = WordTokenizer(word_splitter=BertBasicWordSplitter(do_lower_case=bert_params["do_lowercase"]))
+        _tokenizer = PretrainedTransformerTokenizer(model_name="TurkuNLP/bert-base-finnish-cased-v1", do_lowercase=False)
+        _token_indexers2 = {"bert": PretrainedBertIndexer.from_params(Params(bert_params))}
+        _token_indexers = {"bert": PretrainedTransformerIndexer(model_name="TurkuNLP/bert-base-finnish-cased-v1", do_lowercase=False)}
+        # 'bert' or 'tokens' - check if tokens help?  
+        #_token_indexer_id = {"tokens": SingleIdTokenIndexer(namespace='id')} # not needed
     _max_sequence_length = max_sequence_length
     _concat_title_abstract = concat_title_abstract
     _data_source = data_source
@@ -103,8 +110,10 @@ def get_text_tokens(title_tokens, abstract_tokens, abstract_delimiter):
     title_tokens = title_tokens + abstract_delimiter + abstract_tokens
     return title_tokens
 
+
 def get_instance(paper):
     global _tokenizer
+    global _tokenizer2
     global _token_indexers
     global _token_indexer_id
     global _max_sequence_length
@@ -112,9 +121,11 @@ def get_instance(paper):
     global _data_source
     global _included_text_fields
 
-    included_text_fields = set(_included_text_fields.split())
 
-    query_abstract_tokens = _tokenizer.tokenize(paper.get("query_abstract") or "") #SHOULD I USE FINBERT TOKENIZER HERE?
+    logger.info("Using tokenizer {}".format(_tokenizer))
+
+    included_text_fields = set(_included_text_fields.split())
+    query_abstract_tokens = _tokenizer.tokenize(paper.get("query_abstract") or "")
     query_title_tokens = _tokenizer.tokenize(paper.get("query_title") or "")
 
     pos_abstract_tokens = _tokenizer.tokenize(paper.get("pos_abstract") or "")
@@ -123,14 +134,23 @@ def get_instance(paper):
     neg_abstract_tokens = _tokenizer.tokenize(paper.get("neg_abstract") or "")
     neg_title_tokens = _tokenizer.tokenize(paper.get("neg_title") or "")
 
-    if _concat_title_abstract and 'abstract' in included_text_fields:
-        abstract_delimiter = [Token('[SEP]')]
-        query_title_tokens = get_text_tokens(query_title_tokens, query_abstract_tokens, abstract_delimiter)
-        pos_title_tokens = get_text_tokens(pos_title_tokens, pos_abstract_tokens, abstract_delimiter)
-        neg_title_tokens = get_text_tokens(neg_title_tokens, neg_abstract_tokens, abstract_delimiter)
-        query_abstract_tokens = pos_abstract_tokens = neg_abstract_tokens = []
-
     max_seq_len = _max_sequence_length
+
+
+    # Original WordSplitter did not add SEP and CLS tokens in the beginning and end
+    # Here we remove those tokens
+    for tokens in (query_abstract_tokens,\
+                    query_title_tokens,\
+                    pos_abstract_tokens,\
+                    pos_title_tokens,\
+                    neg_abstract_tokens,\
+                    neg_title_tokens):
+        
+        if tokens[-1] == Token('[SEP]'):
+            tokens = tokens[:-1]
+        if tokens[0] == Token('[CLS]'):
+            tokens = tokens[1:]
+
 
     if _max_sequence_length > 0:
         query_abstract_tokens = query_abstract_tokens[:max_seq_len]
@@ -144,19 +164,13 @@ def get_instance(paper):
         "source_title": TextField(query_title_tokens, token_indexers=_token_indexers),
         "pos_title": TextField(pos_title_tokens, token_indexers=_token_indexers),
         "neg_title": TextField(neg_title_tokens, token_indexers=_token_indexers),
-        'source_paper_id': MetadataField(paper['query_paper_id']),
+        "source_paper_id": MetadataField(paper['query_paper_id']),
         "pos_paper_id": MetadataField(paper['pos_paper_id']),
         "neg_paper_id": MetadataField(paper['neg_paper_id']),
+        "source_abstract": TextField(query_abstract_tokens, token_indexers=_token_indexers),
+        "pos_abstract": TextField(pos_abstract_tokens, token_indexers=_token_indexers),
+        "neg_abstract": TextField(neg_abstract_tokens, token_indexers=_token_indexers)
     }
-
-    if not _concat_title_abstract:
-        if query_abstract_tokens:
-            fields["source_abstract"] = TextField(query_abstract_tokens, token_indexers=_token_indexers)
-        if pos_abstract_tokens:
-            fields["pos_abstract"] = TextField(pos_abstract_tokens, token_indexers=_token_indexers)
-        if neg_abstract_tokens:
-            fields["neg_abstract"] = TextField(neg_abstract_tokens, token_indexers=_token_indexers)
-
     if _data_source:
         fields["data_source"] = MetadataField(_data_source)
 
@@ -177,15 +191,7 @@ class TrainingInstanceGenerator:
         self.paper_feature_cache = {}
         self.metadata = metadata
         self.data_source = data_source
-
         self.data = data
-        # self.triplet_generator = TripletGenerator(
-        #     paper_ids=list(metadata.keys()),
-        #     coviews=data,
-        #     margin_fraction=self.margin_fraction,
-        #     samples_per_query=self.samples_per_query,
-        #     ratio_hard_negatives=self.ratio_hard_negatives
-        # )
 
     def _get_paper_features(self, paper: Optional[dict] = None) -> \
         Tuple[List[Token], List[Token], List[Token], int, List[Token]]:
@@ -193,8 +199,6 @@ class TrainingInstanceGenerator:
             paper_id = paper.get('paper_id')
             if paper_id in self.paper_feature_cache:  # This function is being called by the same paper multiple times.
                 return self.paper_feature_cache[paper_id]
-
-
             references = paper.get('references')
             features = paper.get('abstract'), paper.get('title'), references
             self.paper_feature_cache[paper_id] = features
@@ -261,7 +265,7 @@ class TrainingInstanceGenerator:
                 # if there is no title and abstract skip this triplet
                 count_fail += 1
                 pass
-        logger.info(f"done getting triplets, success rate:{(count_success*100/(count_success+count_fail+0.001)):.2f}%,"
+        logger.info(f"All triplets generated, success rate:{(count_success*100/(count_success+count_fail+0.001)):.2f}%,"
                      f"total: {count_success+count_fail}")
 
 
@@ -304,7 +308,7 @@ def get_instances(data, query_ids_file, metadata, data_source=None, n_jobs=1, n_
 
     logger.info("n_jobs: {}".format(n_jobs))
     if n_jobs == 1:
-        logger.info(f'Converting raw instances to allennlp instances:')
+        logger.info('Converting raw instances to allennlp instances with n_jobs={}'.format(n_jobs))
         for e in tqdm.tqdm(instances_raw):
             yield get_instance(e)
 
