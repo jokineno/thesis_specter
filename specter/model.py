@@ -82,31 +82,6 @@ class TripletLoss(nn.Module):
         else:
             raise TypeError(f"Unrecognized option for `reduction`:{self.reduction}")
 
-
-class BinaryLoss(nn.Module):
-    """
-    Computes contrastive loss[1, 2] twice, one time for the distance between query and positive example,
-        and another for the distance between query and negative example. Both use l2-distance.
-    [1] http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf, equation 4
-    [2] https://gist.github.com/harveyslash/725fcc68df112980328951b3426c0e0b#file-contrastive-loss-py
-    """
-
-    def __init__(self, margin=1.0):
-        """
-        Args:
-            margin: margin (float, optional): Default: `1.0`.
-        """
-        super(BinaryLoss, self).__init__()
-        self.margin = margin
-
-    def forward(self, query, positive, negative):
-        distance_positive = F.pairwise_distance(query, positive)
-        distance_negative = F.pairwise_distance(query, negative)
-
-        # adding the two contrastive losses then simplify
-        return torch.pow(distance_positive, 2) + torch.pow(torch.clamp(self.margin - distance_negative, min=0.0), 2)
-
-
 @Model.register("specter")
 class Specter(Model):
 
@@ -151,8 +126,6 @@ class Specter(Model):
 
         if loss_distance == 'l2-norm':
             self.loss = torch.nn.TripletMarginLoss(margin=loss_margin, reduction='none')
-        elif loss_distance == 'binary':
-            self.loss = BinaryLoss(margin=loss_margin)
         else:
             self.loss = TripletLoss(margin=loss_margin, distance=loss_distance, reduction='none')
 
@@ -160,7 +133,6 @@ class Specter(Model):
             self.layer_norm = LayerNorm(self.feedforward.get_output_dim())
         self.do_layer_norm = layer_norm
 
-        # self.layer_norm_author_embedding = LayerNorm(author_feedforward.get_output_dim())
 
         if embedding_layer_norm:
             self.layer_norm_word_embedding = LayerNorm(self.title_encoder.get_input_dim())
@@ -169,7 +141,6 @@ class Specter(Model):
         self.dropout = Dropout()
 
 
-      
         # internal variable showing that the title/abstract should be encoded with a transformer
         # do not change this as it should be by default `false` in this class
         # in the inheriting `PaperRepresentationTransoformer` class it is set to true in the constructor

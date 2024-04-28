@@ -52,6 +52,10 @@ class DataReaderFromPickled(DatasetReader):
         the additional arguments are not used here and are for compatibility with
         the other data reader at prediction time
         """
+        print("===================================")
+        logger.info("Initializing DataReaderFromPickled...")
+        logger.info("Using word_splitter {} and token_indexers {}".format(word_splitter, token_indexers))
+        print("===================================")
         self.max_sequence_length = max_sequence_length
         self.token_indexers = token_indexers
         self._concat_title_abstract = concat_title_abstract
@@ -168,6 +172,9 @@ class DataReader(DatasetReader):
             included_text_fields: space delimited fields to concat to the title: e.g., `title abstract authors`
             use_paper_feature_cache: set to False to disable the in-memory cache of paper features
         """
+        logger.info("Initializing DataReader...")
+        logger.info("Tokenizer {} and token_indexers {} and word_splitter {}".format(tokenizer, token_indexers, word_splitter))
+        logger.info(f"Use cls token {use_cls_token}, max_sequence_length {max_sequence_length}")
         super().__init__(lazy)
         self._word_splitter = word_splitter or SimpleWordSplitter()
         self._tokenizer = tokenizer or WordTokenizer(self._word_splitter)
