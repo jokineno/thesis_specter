@@ -56,11 +56,13 @@ else
   --train-path thesis_data/preprocessed_demo/data-train.p \
   --dev-path thesis_data/preprocessed_demo/data-val.p \
   --bert-vocab thesis_data/finnish_bert_cased/vocab.txt \
-  --bert-weights thesis_data/finnish_bert_cased/finnish_bert.tar.gz \
+  --bert-weights TurkuNLP/bert-base-finnish-cased-v1 \
   --vocab thesis_data/finnish_bert_cased/vocabulary \
   --num-train-instances $training_instances_count \
   --cuda-device -1
 fi
+#--bert-weights thesis_data/finnish_bert_cased/finnish_bert.tar.gz \
+
 
 echo "[*] DONE. Training finished.."
 echo "[*] Next Step: See finetuned model in $OUTPUT_PATH"

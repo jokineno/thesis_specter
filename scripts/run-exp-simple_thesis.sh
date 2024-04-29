@@ -43,7 +43,7 @@ max_seq_len=256
 
 TRAIN_PATH="data/training-data/train.pkl"
 DEV_PATH="data/training-data/val.pkl"
-BERT_MODEL="bert-pretrained"
+BERT_MODEL="pretrained_transformer"
 INCLUDE_VENUE="false"
 
 # --------------

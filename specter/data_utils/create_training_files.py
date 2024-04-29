@@ -121,9 +121,6 @@ def get_instance(paper):
     global _data_source
     global _included_text_fields
 
-
-    logger.info("Using tokenizer {}".format(_tokenizer))
-
     included_text_fields = set(_included_text_fields.split())
     query_abstract_tokens = _tokenizer.tokenize(paper.get("query_abstract") or "")
     query_title_tokens = _tokenizer.tokenize(paper.get("query_title") or "")
@@ -136,20 +133,20 @@ def get_instance(paper):
 
     max_seq_len = _max_sequence_length
 
-
-    # Original WordSplitter did not add SEP and CLS tokens in the beginning and end
-    # Here we remove those tokens
-    for tokens in (query_abstract_tokens,\
-                    query_title_tokens,\
-                    pos_abstract_tokens,\
-                    pos_title_tokens,\
-                    neg_abstract_tokens,\
-                    neg_title_tokens):
-        
-        if tokens[-1] == Token('[SEP]'):
-            tokens = tokens[:-1]
-        if tokens[0] == Token('[CLS]'):
-            tokens = tokens[1:]
+    # remove first and last tokens from each 
+    query_abstract_tokens = query_abstract_tokens[1:-1]
+    query_title_tokens = query_title_tokens[1:-1]
+    pos_abstract_tokens = pos_abstract_tokens[1:-1]
+    pos_title_tokens = pos_title_tokens[1:-1]
+    neg_abstract_tokens = neg_abstract_tokens[1:-1]
+    neg_title_tokens = neg_title_tokens[1:-1]
+    
+    _concat_title_abstract = True 
+    if _concat_title_abstract:
+        abstract_delimiter = [Token('[SEP]')] # title [SEP] abstract
+        query_title_tokens = get_text_tokens(query_title_tokens, query_abstract_tokens, abstract_delimiter)
+        pos_title_tokens = get_text_tokens(pos_title_tokens, pos_abstract_tokens, abstract_delimiter)
+        neg_title_tokens = get_text_tokens(neg_title_tokens, neg_abstract_tokens, abstract_delimiter)
 
 
     if _max_sequence_length > 0:

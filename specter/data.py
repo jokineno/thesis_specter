@@ -21,7 +21,8 @@ from allennlp.data.dataset_readers.dataset_reader import DatasetReader, _LazyIns
 from allennlp.data.fields import LabelField, TextField, MultiLabelField, ListField, ArrayField, MetadataField
 from allennlp.data.instance import Instance
 from allennlp.data.tokenizers import Tokenizer, WordTokenizer
-from allennlp.data.token_indexers import TokenIndexer, SingleIdTokenIndexer, PretrainedBertIndexer
+from allennlp.data.token_indexers import TokenIndexer, SingleIdTokenIndexer, PretrainedBertIndexer, PretrainedTransformerIndexer 
+from allennlp.data.tokenizers.pretrained_transformer_tokenizer import PretrainedTransformerTokenizer
 from allennlp.data.tokenizers.word_splitter import WordSplitter, SimpleWordSplitter, BertBasicWordSplitter
 from allennlp.data.tokenizers.token import Token
 from specter.data_utils.create_training_files import get_text_tokens
@@ -31,8 +32,6 @@ from specter.data_utils.triplet_sampling import TripletGenerator
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 # to avoid empty embedding lookup, we need a placeholder to replace no-venue cases
-NO_VENUE_TEXT = '--no_venue--'
-
 
 @DatasetReader.register("specter_data_reader_pickled")
 class DataReaderFromPickled(DatasetReader):

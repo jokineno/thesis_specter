@@ -27,57 +27,24 @@ local CUDA_DEVICE = std.extVar("CUDA_DEVICE");
         "max_sequence_length": MAX_SEQ_LEN,
         "token_indexers": {
             "bert": {
-                "type": BERT_MODEL,
-                "do_lowercase": true,
-                "truncate_long_sequences": true,
-                [if BERT_MODEL == 'bert-pretrained' && BERT_WEIGHTS != 'bert-pretrained' then "pretrained_model"]: BERT_VOCAB,
-                [if BERT_MODEL == 'pretrained_transformer' then "model_name"]: BERT_WEIGHTS,
+                "type": "pretrained_transformer",
+                "do_lowercase": false,
+                "model_name": "TurkuNLP/bert-base-finnish-cased-v1",
             }
         },
-        "word_splitter": "bert-basic"
+        "tokenizer": {
+            "type": "pretrained_transformer",
+            "model_name": "TurkuNLP/bert-base-finnish-cased-v1",
+            "do_lowercase": false
+        },
     },
     "iterator": {
         "type": "basic",
-        "batch_size": BATCH_SIZE,
+        "batch_size": 4,
         "cache_instances": true
     },
     "model": {
         "type": "specter",
-        "abstract_encoder": {
-            "type": "boe",
-            "embedding_dim": 768
-        },
-        "author_feedforward": {
-            "activations": [
-                "relu"
-            ],
-            "dropout": [
-                0.2
-            ],
-            "hidden_dims": [
-                10
-            ],
-            "input_dim": 12,
-            "num_layers": 1
-        },
-        "author_id_embedder": {
-            "token_embedders": {
-                "tokens": {
-                    "type": "embedding",
-                    "embedding_dim": 10,
-                    "trainable": true
-                }
-            }
-        },
-        "author_position_embedder": {
-            "token_embedders": {
-                "tokens": {
-                    "type": "embedding",
-                    "embedding_dim": 2,
-                    "trainable": true
-                }
-            }
-        },
         "bert_finetune": true,
         "dropout": 0.25,
         "embedding_layer_norm": true,
@@ -94,12 +61,10 @@ local CUDA_DEVICE = std.extVar("CUDA_DEVICE");
             "input_dim": 1586,
             "num_layers": 1
         },
-        "ignore_authors": true,
         "layer_norm": true,
         "loss_distance": "l2-norm",
         "loss_margin": "1",
         "predict_mode": false,
-        "include_venue": INCLUDE_VENUE,
         "text_field_embedder": {
             "allow_unmatched_keys": true,
             [if BERT_MODEL != 'pretrained_transformer' then "embedder_to_indexer_map"]: {
@@ -113,29 +78,17 @@ local CUDA_DEVICE = std.extVar("CUDA_DEVICE");
             },
             "token_embedders": {
                 "bert": {
-                    "type": BERT_MODEL,
-                    [if BERT_MODEL == 'bert-pretrained' then "pretrained_model"]: BERT_WEIGHTS,
-                    [if BERT_MODEL == 'pretrained_transformer' then "model_name"]: BERT_WEIGHTS,
-                    "requires_grad": BERT_REQUIRES_GRAD
+                    "type": "pretrained_transformer",
+                    "model_name": "TurkuNLP/bert-base-finnish-cased-v1"
                 }
             }
         },
         "title_encoder": {
+            //"type": "bert_pooler",
+            //"pretrained_model": "TurkuNLP/bert-base-finnish-cased-v1",
+            //"requires_grad": true,
             "type": "boe",
             "embedding_dim": 768
-        },
-        "venue_encoder": {
-            "type": "boe",
-            "embedding_dim": 50
-        },
-        "venue_field_embedder": {
-            "token_embedders": {
-                "tokens": {
-                    "type": "embedding",
-                    "embedding_dim": 50,
-                    "trainable": true
-                }
-            }
         }
     },
     "train_data_path": TRAIN_PATH,
@@ -150,12 +103,12 @@ local CUDA_DEVICE = std.extVar("CUDA_DEVICE");
         "learning_rate_scheduler": {
             "type": "slanted_triangular",
             "cut_frac": 0.1,
-            "num_epochs": NUM_EPOCHS,
+            "num_epochs": 2,
             "num_steps_per_epoch": TRAIN_DATA_INSTANCES / 32, 
         },
         "min_delta": "0",
         "model_save_interval": 10000,
-        "num_epochs": NUM_EPOCHS,
+        "num_epochs": 2,
         "optimizer": {
             "type": "bert_adam",
             "lr": "3e-5",
@@ -179,8 +132,5 @@ local CUDA_DEVICE = std.extVar("CUDA_DEVICE");
         "patience": 5,
         "should_log_learning_rate": true,
         "validation_metric": "-loss"
-    },
-    "vocabulary": {
-        "directory_path": VOCAB_PATH
     }
 }
