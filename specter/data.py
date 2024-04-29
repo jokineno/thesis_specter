@@ -15,10 +15,9 @@ import dill
 from allennlp.data import TokenIndexer, Tokenizer
 from allennlp.common import Tqdm
 from allennlp.common.checks import ConfigurationError
-from numpy.compat import os_PathLike
 from overrides import overrides
 from allennlp.data.dataset_readers.dataset_reader import DatasetReader, _LazyInstances
-from allennlp.data.fields import LabelField, TextField, MultiLabelField, ListField, ArrayField, MetadataField
+from allennlp.data.fields import TextField, ArrayField, MetadataField
 from allennlp.data.instance import Instance
 from allennlp.data.tokenizers import Tokenizer, WordTokenizer
 from allennlp.data.token_indexers import TokenIndexer, SingleIdTokenIndexer, PretrainedBertIndexer, PretrainedTransformerIndexer 

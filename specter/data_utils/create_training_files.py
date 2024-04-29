@@ -21,6 +21,9 @@ from allennlp.data.tokenizers.word_splitter import WordSplitter, SimpleWordSplit
 from allennlp.training.util import datasets_from_params
 
 from multiprocessing import Pool
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+
 
 from specter.data_utils import triplet_sampling_parallel
 
@@ -49,97 +52,69 @@ bert_params = {
     "use_starting_offsets": "true"
 }
 
+
 # ---------------
 # instead of a class with its own constructor we define global variables
 # and set their values using a `set_values` function
 # this is not a clean design and has been done to support multiprocessing
 # for more context, see: https://stackoverflow.com/questions/3288595/multiprocessing-how-to-use-pool-map-on-a-function-defined-in-a-class/21345308#21345308
 
-# global variables
-_tokenizer = None
-_tokenizer2 = None
-_token_indexers = None
-_token_indexer_id = None
-_max_sequence_length = None
-_concat_title_abstract = None
-_data_source = None
-_included_text_fields = None
-
 # ----------------
 
-
-def set_values(max_sequence_length: Optional[int] = -1,
-               concat_title_abstract: Optional[bool] = None,
-               data_source: Optional[str] = None,
-               included_text_fields: Optional[str] = None
-               ) -> None:
-    # set global values
-    # note: a class with __init__ would have been a better design
-    # we have this structure for efficiency reasons: to support multiprocessing
-    # as multiprocessing with class methods is slower
+def set_values():
     global _tokenizer
-    global _tokenizer2
     global _token_indexers
-    global _token_indexer_id
-    global _max_sequence_length
-    global _concat_title_abstract
-    global _data_source
-    global _included_text_fields
+    #_tokenizer = WordTokenizer(word_splitter=BertBasicWordSplitter(do_lower_case=bert_params["do_lowercase"]))
+    _tokenizer = PretrainedTransformerTokenizer(model_name="TurkuNLP/bert-base-finnish-cased-v1", do_lowercase=False)
+    #_token_indexers = {"bert": PretrainedBertIndexer.from_params(Params(bert_params))}
+    _token_indexers = {"bert": PretrainedTransformerIndexer(model_name="TurkuNLP/bert-base-finnish-cased-v1", do_lowercase=False)}
 
-    # TurkuNLP/bert-base-finnish-cased-v1
-    if _tokenizer is None:  # if not initialized, initialize the tokenizers and token indexers
-        logger.info("Initializing tokenizers and token indexers")
-        logger.info("bert_params: {}".format(bert_params))
-        _tokenizer2 = WordTokenizer(word_splitter=BertBasicWordSplitter(do_lower_case=bert_params["do_lowercase"]))
-        _tokenizer = PretrainedTransformerTokenizer(model_name="TurkuNLP/bert-base-finnish-cased-v1", do_lowercase=False)
-        _token_indexers2 = {"bert": PretrainedBertIndexer.from_params(Params(bert_params))}
-        _token_indexers = {"bert": PretrainedTransformerIndexer(model_name="TurkuNLP/bert-base-finnish-cased-v1", do_lowercase=False)}
-        # 'bert' or 'tokens' - check if tokens help?  
-        #_token_indexer_id = {"tokens": SingleIdTokenIndexer(namespace='id')} # not needed
-    _max_sequence_length = max_sequence_length
-    _concat_title_abstract = concat_title_abstract
-    _data_source = data_source
-    _included_text_fields = included_text_fields
 
 
 def get_text_tokens(title_tokens, abstract_tokens, abstract_delimiter):
-    """ concats title and abstract using a delimiter"""
-    if title_tokens[-1] != Token('.'):
-            title_tokens += [Token('.')]
+    try:
+        """ concats title and abstract using a delimiter"""
+        if title_tokens[-1] != Token('.'):
+                title_tokens += [Token('.')]
 
-    title_tokens = title_tokens + abstract_delimiter + abstract_tokens
-    return title_tokens
+        title_tokens = title_tokens + abstract_delimiter + abstract_tokens
+        return title_tokens
+    except IndexError as ie:
+        print("IndexError: ", ie)
+        print("title_tokens: ", title_tokens)
+        print("abstract_tokens: ", abstract_tokens)
+        print("abstract_delimiter: ", abstract_delimiter)
+        raise ie
+    except Exception as e:
+        raise e
 
+def remove_special_tokens(tokens):
+    if tokens[0] == Token('[CLS]'):
+        tokens = tokens[1:]
+    if tokens[-1] == Token('[SEP]'):
+        tokens = tokens[:-1]
+    return tokens 
 
 def get_instance(paper):
     global _tokenizer
-    global _tokenizer2
     global _token_indexers
-    global _token_indexer_id
-    global _max_sequence_length
-    global _concat_title_abstract
-    global _data_source
-    global _included_text_fields
-
-    included_text_fields = set(_included_text_fields.split())
+    #_tokenizer = WordTokenizer(word_splitter=BertBasicWordSplitter(do_lower_case=bert_params["do_lowercase"]))
+    #_tokenizer = PretrainedTransformerTokenizer(model_name="TurkuNLP/bert-base-finnish-cased-v1", do_lowercase=False)
+    #_token_indexers = {"bert": PretrainedBertIndexer.from_params(Params(bert_params))}
+    #_token_indexers = {"bert": PretrainedTransformerIndexer(model_name="TurkuNLP/bert-base-finnish-cased-v1", do_lowercase=False)}
     query_abstract_tokens = _tokenizer.tokenize(paper.get("query_abstract") or "")
     query_title_tokens = _tokenizer.tokenize(paper.get("query_title") or "")
-
     pos_abstract_tokens = _tokenizer.tokenize(paper.get("pos_abstract") or "")
     pos_title_tokens = _tokenizer.tokenize(paper.get("pos_title") or "")
-
     neg_abstract_tokens = _tokenizer.tokenize(paper.get("neg_abstract") or "")
     neg_title_tokens = _tokenizer.tokenize(paper.get("neg_title") or "")
-
-    max_seq_len = _max_sequence_length
-
     # remove first and last tokens from each 
-    query_abstract_tokens = query_abstract_tokens[1:-1]
-    query_title_tokens = query_title_tokens[1:-1]
-    pos_abstract_tokens = pos_abstract_tokens[1:-1]
-    pos_title_tokens = pos_title_tokens[1:-1]
-    neg_abstract_tokens = neg_abstract_tokens[1:-1]
-    neg_title_tokens = neg_title_tokens[1:-1]
+    query_abstract_tokens = remove_special_tokens(query_abstract_tokens)
+    query_title_tokens = remove_special_tokens(query_title_tokens)
+    pos_abstract_tokens = remove_special_tokens(pos_abstract_tokens)
+    pos_title_tokens = remove_special_tokens(pos_title_tokens)
+    neg_abstract_tokens = remove_special_tokens(neg_abstract_tokens)
+    neg_title_tokens = remove_special_tokens(neg_title_tokens)
     
     _concat_title_abstract = True 
     if _concat_title_abstract:
@@ -148,14 +123,14 @@ def get_instance(paper):
         pos_title_tokens = get_text_tokens(pos_title_tokens, pos_abstract_tokens, abstract_delimiter)
         neg_title_tokens = get_text_tokens(neg_title_tokens, neg_abstract_tokens, abstract_delimiter)
 
-
-    if _max_sequence_length > 0:
-        query_abstract_tokens = query_abstract_tokens[:max_seq_len]
-        query_title_tokens = query_title_tokens[:max_seq_len]
-        pos_abstract_tokens = pos_abstract_tokens[:max_seq_len]
-        pos_title_tokens = pos_title_tokens[:max_seq_len]
-        neg_abstract_tokens = neg_abstract_tokens[:max_seq_len]
-        neg_title_tokens = neg_title_tokens[:max_seq_len]
+    # cut sequence 
+    max_seq_len = 512
+    query_abstract_tokens = query_abstract_tokens[:max_seq_len]
+    query_title_tokens = query_title_tokens[:max_seq_len]
+    pos_abstract_tokens = pos_abstract_tokens[:max_seq_len]
+    pos_title_tokens = pos_title_tokens[:max_seq_len]
+    neg_abstract_tokens = neg_abstract_tokens[:max_seq_len]
+    neg_title_tokens = neg_title_tokens[:max_seq_len]
 
     fields = {
         "source_title": TextField(query_title_tokens, token_indexers=_token_indexers),
@@ -168,9 +143,6 @@ def get_instance(paper):
         "pos_abstract": TextField(pos_abstract_tokens, token_indexers=_token_indexers),
         "neg_abstract": TextField(neg_abstract_tokens, token_indexers=_token_indexers)
     }
-    if _data_source:
-        fields["data_source"] = MetadataField(_data_source)
-
     return Instance(fields)
 
 class TrainingInstanceGenerator:
@@ -196,12 +168,11 @@ class TrainingInstanceGenerator:
             paper_id = paper.get('paper_id')
             if paper_id in self.paper_feature_cache:  # This function is being called by the same paper multiple times.
                 return self.paper_feature_cache[paper_id]
-            references = paper.get('references')
-            features = paper.get('abstract'), paper.get('title'), references
+            features = paper.get('abstract'), paper.get('title')
             self.paper_feature_cache[paper_id] = features
             return features
         else:
-            return None, None, None
+            return None, None
         
     def get_raw_instances(self, query_ids, subset_name=None, n_jobs=10):
         """
@@ -241,9 +212,9 @@ class TrainingInstanceGenerator:
                     count_fail += 1
                     continue
 
-                query_abstract, query_title, query_refs = self._get_paper_features(query_paper)
-                pos_abstract, pos_title,  pos_refs = self._get_paper_features(pos_paper)
-                neg_abstract, neg_title, neg_refs = self._get_paper_features(neg_paper)
+                query_abstract, query_title = self._get_paper_features(query_paper)
+                pos_abstract, pos_title  = self._get_paper_features(pos_paper)
+                neg_abstract, neg_title = self._get_paper_features(neg_paper)
 
                 instance = {
                     "query_abstract": query_abstract,
@@ -254,8 +225,7 @@ class TrainingInstanceGenerator:
                     "pos_paper_id": pos_paper["paper_id"],
                     "neg_abstract": neg_abstract,
                     "neg_title": neg_title,
-                    "neg_paper_id": neg_paper["paper_id"],
-                    "data_source": self.data_source
+                    "neg_paper_id": neg_paper["paper_id"]
                 }
                 yield instance
             except KeyError:
@@ -293,10 +263,7 @@ def get_instances(data, query_ids_file, metadata, data_source=None, n_jobs=1, n_
                                           margin_fraction=margin_fraction, ratio_hard_negatives=ratio_hard_negatives,
                                           samples_per_query=samples_per_query)
 
-    set_values(max_sequence_length=512,
-               concat_title_abstract=concat_title_abstract,
-               data_source=data_source,
-               included_text_fields=included_text_fields)
+    set_values()
 
     query_ids = [line.strip() for line in open(query_ids_file)]
 
