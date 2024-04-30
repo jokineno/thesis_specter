@@ -26,7 +26,7 @@ local CUDA_DEVICE = std.extVar("CUDA_DEVICE");
         "lazy": true,
         "max_sequence_length": MAX_SEQ_LEN,
         "token_indexers": {
-            "bert": {
+             "bert": {
                 "type": "pretrained_transformer",
                 "do_lowercase": false,
                 "model_name": "TurkuNLP/bert-base-finnish-cased-v1",
@@ -127,6 +127,7 @@ local CUDA_DEVICE = std.extVar("CUDA_DEVICE");
         "validation_metric": "-loss"
     },
     "vocabulary": {
-        "directory_path": VOCAB_PATH
+        "type": "from_pretrained_transformer",
+        "model_name": "TurkuNLP/bert-base-finnish-cased-v1"
     }
 }
