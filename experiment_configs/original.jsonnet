@@ -62,20 +62,10 @@ local CUDA_DEVICE = std.extVar("CUDA_DEVICE");
         "predict_mode": false,
         "text_field_embedder": {
             "allow_unmatched_keys": true,
-            [if BERT_MODEL != 'pretrained_transformer' then "embedder_to_indexer_map"]: {
-                "bert": [
-                    "bert",
-                    "bert-offsets"
-                ],
-                "tokens": [
-                    "tokens"
-                ]
-            },
             "token_embedders": {
                 "bert": {
-                    "type": "bert-pretrained",
-                    "pretrained_model": BERT_WEIGHTS,
-                    "requires_grad": BERT_REQUIRES_GRAD
+                    "type": "pretrained_transformer",
+                    "model_name": "TurkuNLP/bert-base-finnish-cased-v1"
                 }
             }
         },

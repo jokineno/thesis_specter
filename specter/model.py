@@ -147,8 +147,15 @@ class Specter(Model):
         """ Embed the paper"""
 
         # in finetuning mode, title and abstract are one long sequence.
+        #print("=============_embed_paper====================")
+        #print("SHAPE OF TITLE(bert indexer)",title['bert'].shape)
         embedded_title, title_mask = self.get_embedding_and_mask(title, embedder_type='generic')
+        #print("\n"*3)
+        #print("embedded_title", embedded_title, type(embedded_title), embedded_title.shape)
+        #print("title_mask", title_mask, type(title_mask), title_mask.shape)
         encoded_title = self.title_encoder(embedded_title, title_mask)
+        #print("\n"*3)
+        #print("encoded_title", encoded_title, type(encoded_title), encoded_title.shape)
 
         if self.dropout:
             encoded_title = self.dropout(encoded_title)

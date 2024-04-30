@@ -142,6 +142,30 @@ def remove_special_tokens(tokens):
         tokens = tokens[:-1]
     return tokens 
 
+
+def _get_author_field(authors: List[str]):
+    """
+    Converts a list of author ids to their corresponding label and positions
+    Args:
+        authors: list of authors
+
+    Returns:
+        authors and their positions
+    """
+    global _token_indexer_author_id
+    global _token_indexer_author_position
+    global _tokenizer
+    authors = ' '.join(authors)
+    authors = remove_special_tokens(_tokenizer.tokenize(authors))
+    if len(authors) > MAX_NUM_AUTHORS:
+        authors = authors[:MAX_NUM_AUTHORS - 1] + [authors[-1]]
+    author_field = TextField(authors, token_indexers=_token_indexer_author_id)
+    author_positions = ' '.join([f'{i:02}' for i in range(len(authors))])
+    author_positions_tokens = remove_special_tokens(_tokenizer.tokenize(author_positions))
+    position_field = TextField(author_positions_tokens, token_indexers=_token_indexer_author_position)
+    return author_field, position_field
+
+
 def get_instance(paper):
     global _tokenizer
     global _token_indexers
@@ -199,13 +223,10 @@ def get_instance(paper):
         "neg_abstract": TextField(neg_abstract_tokens, token_indexers=_token_indexers)
     }
 
-    source_authors = remove_special_tokens(_tokenizer.tokenize("--no_authors--"))
-    pos_authors = remove_special_tokens(_tokenizer.tokenize("--no_authors--"))
-    neg_authors = remove_special_tokens(_tokenizer.tokenize("--no_authors--"))
-    source_author_positions = remove_special_tokens(_tokenizer.tokenize("--no_positions--"))
-    pos_author_positions = remove_special_tokens(_tokenizer.tokenize("--no_positions--"))
-    neg_author_positions = remove_special_tokens(_tokenizer.tokenize("--no_positions--"))
 
+    source_authors, source_author_positions = _get_author_field([])
+    pos_authors, pos_author_positions = _get_author_field([])
+    neg_authors, neg_author_positions = _get_author_field([])
     fields['source_authors'] = source_authors
     fields['source_author_positions'] = source_author_positions
     fields['pos_authors'] = pos_authors
