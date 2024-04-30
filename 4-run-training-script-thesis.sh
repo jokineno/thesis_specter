@@ -49,14 +49,14 @@ else
   echo "[*] Using $training_instances_count as training instances"
   set -u
   ./scripts/run-exp-simple_thesis.sh \
-  -c experiment_configs/simple_thesis.jsonnet \
+  -c experiment_configs/original.jsonnet \
   -s $OUTPUT_PATH/ \
   --num-epochs 2 \
   --batch-size 4 \
   --train-path thesis_data/preprocessed_demo/data-train.p \
   --dev-path thesis_data/preprocessed_demo/data-val.p \
   --bert-vocab thesis_data/finnish_bert_cased/vocab.txt \
-  --bert-weights TurkuNLP/bert-base-finnish-cased-v1 \
+  --bert-weights thesis_data/finnish_bert_cased/finnish_bert.tar.gz \
   --vocab thesis_data/finnish_bert_cased/vocabulary \
   --num-train-instances $training_instances_count \
   --cuda-device -1

@@ -24,7 +24,7 @@ local CUDA_DEVICE = std.extVar("CUDA_DEVICE");
         "type": "specter_data_reader_pickled",
         "concat_title_abstract": true,
         "lazy": true,
-        "max_sequence_length": MAX_SEQ_LEN,
+        "max_sequence_length": 512,
         "token_indexers": {
             "bert": {
                 "type": BERT_MODEL,
@@ -38,46 +38,11 @@ local CUDA_DEVICE = std.extVar("CUDA_DEVICE");
     },
     "iterator": {
         "type": "basic",
-        "batch_size": BATCH_SIZE,
+        "batch_size": 4,
         "cache_instances": true
     },
     "model": {
         "type": "specter",
-        "abstract_encoder": {
-            "type": "boe",
-            "embedding_dim": 768
-        },
-        "author_feedforward": {
-            "activations": [
-                "relu"
-            ],
-            "dropout": [
-                0.2
-            ],
-            "hidden_dims": [
-                10
-            ],
-            "input_dim": 12,
-            "num_layers": 1
-        },
-        "author_id_embedder": {
-            "token_embedders": {
-                "tokens": {
-                    "type": "embedding",
-                    "embedding_dim": 10,
-                    "trainable": true
-                }
-            }
-        },
-        "author_position_embedder": {
-            "token_embedders": {
-                "tokens": {
-                    "type": "embedding",
-                    "embedding_dim": 2,
-                    "trainable": true
-                }
-            }
-        },
         "bert_finetune": true,
         "dropout": 0.25,
         "embedding_layer_norm": true,
@@ -94,12 +59,10 @@ local CUDA_DEVICE = std.extVar("CUDA_DEVICE");
             "input_dim": 1586,
             "num_layers": 1
         },
-        "ignore_authors": true,
         "layer_norm": true,
         "loss_distance": "l2-norm",
         "loss_margin": "1",
         "predict_mode": false,
-        "include_venue": INCLUDE_VENUE,
         "text_field_embedder": {
             "allow_unmatched_keys": true,
             [if BERT_MODEL != 'pretrained_transformer' then "embedder_to_indexer_map"]: {
@@ -123,19 +86,6 @@ local CUDA_DEVICE = std.extVar("CUDA_DEVICE");
         "title_encoder": {
             "type": "boe",
             "embedding_dim": 768
-        },
-        "venue_encoder": {
-            "type": "boe",
-            "embedding_dim": 50
-        },
-        "venue_field_embedder": {
-            "token_embedders": {
-                "tokens": {
-                    "type": "embedding",
-                    "embedding_dim": 50,
-                    "trainable": true
-                }
-            }
         }
     },
     "train_data_path": TRAIN_PATH,
@@ -150,12 +100,12 @@ local CUDA_DEVICE = std.extVar("CUDA_DEVICE");
         "learning_rate_scheduler": {
             "type": "slanted_triangular",
             "cut_frac": 0.1,
-            "num_epochs": NUM_EPOCHS,
+            "num_epochs": 2,
             "num_steps_per_epoch": TRAIN_DATA_INSTANCES / 32, 
         },
         "min_delta": "0",
         "model_save_interval": 10000,
-        "num_epochs": NUM_EPOCHS,
+        "num_epochs": 2,
         "optimizer": {
             "type": "bert_adam",
             "lr": "3e-5",

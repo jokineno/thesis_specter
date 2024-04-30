@@ -1,31 +1,20 @@
-from typing import Dict, Optional, Union
+from typing import Dict, Optional
 
-import numpy
 from allennlp.common.checks import ConfigurationError
 from overrides import overrides
 import torch
 import torch.nn.functional as F
 from torch.nn import Dropout
-from torch.nn.modules.distance import CosineSimilarity
+import torch.nn as nn
 
 from allennlp.data import Vocabulary
-from allennlp.modules import Seq2VecEncoder, Seq2SeqEncoder, TextFieldEmbedder, FeedForward, TimeDistributed, LayerNorm
+from allennlp.modules import Seq2VecEncoder, TextFieldEmbedder, FeedForward, LayerNorm
 from allennlp.models.model import Model
 from allennlp.nn import InitializerApplicator, RegularizerApplicator
 from allennlp.nn import util
-from allennlp.modules.token_embedders import Embedding
-
 import logging
-import contextlib
-
 logging.basicConfig()
 logger = logging.getLogger()
-
-
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-
 
 class TripletLoss(nn.Module):
     """
