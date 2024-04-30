@@ -1,18 +1,22 @@
 from typing import Dict, Optional, Union
 
+import numpy
 from allennlp.common.checks import ConfigurationError
 from overrides import overrides
 import torch
 import torch.nn.functional as F
 from torch.nn import Dropout
+from torch.nn.modules.distance import CosineSimilarity
 
 from allennlp.data import Vocabulary
-from allennlp.modules import Seq2VecEncoder, Seq2SeqEncoder, TextFieldEmbedder, FeedForward, LayerNorm
+from allennlp.modules import Seq2VecEncoder, Seq2SeqEncoder, TextFieldEmbedder, FeedForward, TimeDistributed, LayerNorm
 from allennlp.models.model import Model
 from allennlp.nn import InitializerApplicator, RegularizerApplicator
 from allennlp.nn import util
+from allennlp.modules.token_embedders import Embedding
 
 import logging
+import contextlib
 
 logging.basicConfig()
 logger = logging.getLogger()
@@ -84,7 +88,6 @@ class Specter(Model):
     def __init__(self, vocab: Vocabulary,
                  text_field_embedder: TextFieldEmbedder,
                  title_encoder: Seq2VecEncoder,
-                 body_encoder: Seq2VecEncoder = None,
                  predict_mode: bool = False,
                  feedforward: FeedForward = None,
                  initializer: InitializerApplicator = InitializerApplicator(),
@@ -97,10 +100,15 @@ class Specter(Model):
                  bert_finetune: Optional[bool] = False,
                  ) -> None:
         super(Specter, self).__init__(vocab, regularizer)
-
+        print("\n"*5)
+        print("=====*****INITIALIZING SPECTER****======")
+        print("vocab", vocab, type(vocab))
+        print("text_field_embedder", text_field_embedder, type(text_field_embedder))
+        print("title_encoder", title_encoder, type(title_encoder))
+        print("feedforward", feedforward, type(feedforward))
+        print("\n"*5)
         self.text_field_embedder = text_field_embedder
         self.title_encoder = title_encoder
-        self.body_encoder = body_encoder
 
         self.predict_mode = predict_mode
 
@@ -115,6 +123,7 @@ class Specter(Model):
             self.layer_norm = LayerNorm(self.feedforward.get_output_dim())
         self.do_layer_norm = layer_norm
 
+        # self.layer_norm_author_embedding = LayerNorm(author_feedforward.get_output_dim())
 
         if embedding_layer_norm:
             self.layer_norm_word_embedding = LayerNorm(self.title_encoder.get_input_dim())
@@ -122,7 +131,7 @@ class Specter(Model):
 
         self.dropout = Dropout()
 
-
+       
         # internal variable showing that the title/abstract should be encoded with a transformer
         # do not change this as it should be by default `false` in this class
         # in the inheriting `PaperRepresentationTransoformer` class it is set to true in the constructor
@@ -141,19 +150,20 @@ class Specter(Model):
 
     def _embed_paper(self,
                     title: torch.Tensor,
-                    abstract: torch.Tensor
-                    ):
+                    abstract: torch.Tensor,
+                    year: torch.Tensor,
+                    venue: torch.Tensor,
+                    body: torch.Tensor,
+                    author_text: torch.Tensor):
         """ Embed the paper"""
 
         # in finetuning mode, title and abstract are one long sequence.
-        embedded_title, title_mask = self.get_embedding_and_mask(title)
+        embedded_title, title_mask = self.get_embedding_and_mask(title, embedder_type='generic')
         encoded_title = self.title_encoder(embedded_title, title_mask)
 
         if self.dropout:
             encoded_title = self.dropout(encoded_title)
-
         paper_embedding = encoded_title
-
         return paper_embedding
 
 
@@ -161,12 +171,30 @@ class Specter(Model):
     def forward(self,  # type: ignore
                 source_title: Dict[str, torch.LongTensor],
                 source_abstract: Dict[str, torch.LongTensor] = None,
+                source_authors: Dict[str, torch.LongTensor] = None,
+                source_author_positions: Dict[str, torch.LongTensor] = None,
+                source_year: Dict[str, torch.LongTensor] = None,
+                source_venue: Dict[str, torch.LongTensor] = None,
+                source_body: Dict[str, torch.LongTensor] = None,
+                source_author_text: Dict[str, torch.LongTensor] = None,
                 source_paper_id: Dict[str, torch.LongTensor] = None,
                 pos_title: Dict[str, torch.LongTensor] = None,
                 pos_abstract: Dict[str, torch.LongTensor] = None,
+                pos_authors: Dict[str, torch.LongTensor] = None,
+                pos_author_positions: Dict[str, torch.LongTensor] = None,
+                pos_year: Dict[str, torch.LongTensor] = None,
+                pos_venue: Dict[str, torch.LongTensor] = None,
+                pos_body: Dict[str, torch.LongTensor] = None,
+                pos_author_text: Dict[str, torch.LongTensor] = None,
                 pos_paper_id: Dict[str, torch.LongTensor] = None,
                 neg_title: Dict[str, torch.LongTensor] = None,
                 neg_abstract: Dict[str, torch.LongTensor] = None,
+                neg_authors: Dict[str, torch.LongTensor] = None,
+                neg_author_positions: Dict[str, torch.LongTensor] = None,
+                neg_year: Dict[str, torch.LongTensor] = None,
+                neg_venue: Dict[str, torch.LongTensor] = None,
+                neg_body: Dict[str, torch.LongTensor] = None,
+                neg_author_text: Dict[str, torch.LongTensor] = None,
                 neg_paper_id: Dict[str, torch.LongTensor] = None,
                 data_source: Optional[str] = None,
                 mixing_ratio: Dict[str, torch.LongTensor] = None,
@@ -185,7 +213,10 @@ class Specter(Model):
             dataset: AllenNLPs interleaving dataset reader adds a `dataset` metadatafield
                 So we need to have it here
         """
-        src_paper = self._embed_paper(source_title, source_abstract)
+        src_paper = self._embed_paper(source_title,
+                                    source_abstract,
+                                    source_year,
+                                    source_venue, source_body, source_author_text)
 
         if (pos_title is None or neg_title is None) and not self.predict_mode:
             raise ConfigurationError('Positive or negative paper title is None in training mode. This field is'
@@ -195,10 +226,16 @@ class Specter(Model):
         # this will be training mode, embed the positive and negative papers
         if pos_title is not None and neg_title is not None and not self.predict_mode:
             # embed the positive paper
-            pos_paper = self._embed_paper(pos_title, pos_abstract)
+            pos_paper = self._embed_paper(pos_title,
+                                          pos_abstract,
+                                          pos_year,
+                                          pos_venue, pos_body, pos_author_text)
 
             # embed the negative paper
-            neg_paper = self._embed_paper(neg_title, neg_abstract)
+            neg_paper = self._embed_paper(neg_title,
+                                          neg_abstract,
+                                          neg_year,
+                                          neg_venue, neg_body, neg_author_text)
 
             loss = self.loss(src_paper, pos_paper, neg_paper)
 
@@ -206,7 +243,7 @@ class Specter(Model):
                 loss *= mixing_ratio.float()
                 loss = loss.mean()
             else:
-                loss = loss.mean() # reduction in triplet loss is None but the mean is computed here. 
+                loss = loss.mean()
 
             output_dict = {"loss": loss}
 
