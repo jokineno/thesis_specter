@@ -14,19 +14,19 @@ import tqdm
 from allennlp.common import Params
 from allennlp.data import DatasetReader, TokenIndexer, Token, Instance
 from allennlp.data.fields import TextField, MetadataField
-from allennlp.data.token_indexers import SingleIdTokenIndexer, PretrainedBertIndexer, PretrainedTransformerIndexer
+from allennlp.data.token_indexers import SingleIdTokenIndexer, PretrainedBertIndexer
+from allennlp.data.token_indexers import PretrainedTransformerIndexer
 from allennlp.data.tokenizers import WordTokenizer
-from allennlp.data.tokenizers.pretrained_transformer_tokenizer import PretrainedTransformerTokenizer
+from allennlp.data.tokenizers import PretrainedTransformerTokenizer
 from allennlp.data.tokenizers.word_splitter import WordSplitter, SimpleWordSplitter, BertBasicWordSplitter
 from allennlp.training.util import datasets_from_params
 
 from multiprocessing import Pool
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
-
-
+import multiprocessing
 
 from specter.data_utils import triplet_sampling_parallel
 
+os.environ['TOKENIZERS_PARALLELISM'] = "false"
 
 def init_logger(*, fn=None):
 
@@ -46,11 +46,7 @@ def init_logger(*, fn=None):
     logging.info('reloading logger')
 
 
-bert_params = {
-    "do_lowercase": False, # should be true for the thesis as the pretrained model is cased version 
-    "pretrained_model": "thesis_data/finnish_bert_cased/vocab.txt", # can be replaced with your own vocab
-    "use_starting_offsets": "true"
-}
+NO_VENUE = '--no_venue--'
 
 
 # ---------------
@@ -59,34 +55,85 @@ bert_params = {
 # this is not a clean design and has been done to support multiprocessing
 # for more context, see: https://stackoverflow.com/questions/3288595/multiprocessing-how-to-use-pool-map-on-a-function-defined-in-a-class/21345308#21345308
 
+# global variables
+_tokenizer = None
+_token_indexers = None
+_token_indexer_author_id = None
+_token_indexer_author_position = None
+_token_indexer_venue = None
+_token_indexer_id = None
+_max_sequence_length = None
+_concat_title_abstract = None
+_data_source = None
+_included_text_fields = None
+
+MAX_NUM_AUTHORS = 5
 # ----------------
 
-def set_values():
+def _get_author_field(authors: List[str]):
+    """
+    Converts a list of author ids to their corresponding label and positions
+    Args:
+        authors: list of authors
+
+    Returns:
+        authors and their positions
+    """
+    global _token_indexer_author_id
+    global _token_indexer_author_position
+    global _tokenizer
+    authors = ' '.join(authors)
+    authors = remove_special_tokens(_tokenizer.tokenize(authors))
+    if len(authors) > MAX_NUM_AUTHORS:
+        authors = authors[:MAX_NUM_AUTHORS - 1] + [authors[-1]]
+    author_field = TextField(authors, token_indexers=_token_indexer_author_id)
+
+    author_positions = ' '.join([f'{i:02}' for i in range(len(authors))])
+    author_positions_tokens = remove_special_tokens(_tokenizer.tokenize(author_positions))
+    position_field = TextField(author_positions_tokens, token_indexers=_token_indexer_author_position)
+    return author_field, position_field
+
+
+def set_values(max_sequence_length: Optional[int] = -1,
+               concat_title_abstract: Optional[bool] = None,
+               data_source: Optional[str] = None,
+               included_text_fields: Optional[str] = None
+               ) -> None:
+    # set global values
+    # note: a class with __init__ would have been a better design
+    # we have this structure for efficiency reasons: to support multiprocessing
+    # as multiprocessing with class methods is slower
     global _tokenizer
     global _token_indexers
-    #_tokenizer = WordTokenizer(word_splitter=BertBasicWordSplitter(do_lower_case=bert_params["do_lowercase"]))
-    _tokenizer = PretrainedTransformerTokenizer(model_name="TurkuNLP/bert-base-finnish-cased-v1", do_lowercase=False)
-    #_token_indexers = {"bert": PretrainedBertIndexer.from_params(Params(bert_params))}
-    _token_indexers = {"bert": PretrainedTransformerIndexer(model_name="TurkuNLP/bert-base-finnish-cased-v1", do_lowercase=False)}
+    global _token_indexer_author_id
+    global _token_indexer_author_position
+    global _token_indexer_venue
+    global _token_indexer_id
+    global _max_sequence_length
+    global _concat_title_abstract
+    global _data_source
+    global _included_text_fields
 
+    if _tokenizer is None:  # if not initialized, initialize the tokenizers and token indexers
+        _tokenizer = PretrainedTransformerTokenizer(model_name="TurkuNLP/bert-base-finnish-cased-v1", do_lowercase=False)
+        _token_indexers = {"bert": PretrainedTransformerIndexer(model_name="TurkuNLP/bert-base-finnish-cased-v1", do_lowercase=False)}
+        _token_indexer_author_id = {"tokens": SingleIdTokenIndexer(namespace='author')}
+        _token_indexer_author_position = {"tokens": SingleIdTokenIndexer(namespace='author_positions')}
+        _token_indexer_venue = {"tokens": SingleIdTokenIndexer(namespace='venue')}
+        _token_indexer_id = {"tokens": SingleIdTokenIndexer(namespace='id')}
+    _max_sequence_length = max_sequence_length
+    _concat_title_abstract = concat_title_abstract
+    _data_source = data_source
+    _included_text_fields = included_text_fields
 
 
 def get_text_tokens(title_tokens, abstract_tokens, abstract_delimiter):
-    try:
-        """ concats title and abstract using a delimiter"""
-        if title_tokens[-1] != Token('.'):
-                title_tokens += [Token('.')]
+    """ concats title and abstract using a delimiter"""
+    if title_tokens[-1] != Token('.'):
+            title_tokens += [Token('.')]
 
-        title_tokens = title_tokens + abstract_delimiter + abstract_tokens
-        return title_tokens
-    except IndexError as ie:
-        print("IndexError: ", ie)
-        print("title_tokens: ", title_tokens)
-        print("abstract_tokens: ", abstract_tokens)
-        print("abstract_delimiter: ", abstract_delimiter)
-        raise ie
-    except Exception as e:
-        raise e
+    title_tokens = title_tokens + abstract_delimiter + abstract_tokens
+    return title_tokens
 
 def remove_special_tokens(tokens):
     if tokens[0] == Token('[CLS]'):
@@ -98,16 +145,24 @@ def remove_special_tokens(tokens):
 def get_instance(paper):
     global _tokenizer
     global _token_indexers
-    #_tokenizer = WordTokenizer(word_splitter=BertBasicWordSplitter(do_lower_case=bert_params["do_lowercase"]))
-    #_tokenizer = PretrainedTransformerTokenizer(model_name="TurkuNLP/bert-base-finnish-cased-v1", do_lowercase=False)
-    #_token_indexers = {"bert": PretrainedBertIndexer.from_params(Params(bert_params))}
-    #_token_indexers = {"bert": PretrainedTransformerIndexer(model_name="TurkuNLP/bert-base-finnish-cased-v1", do_lowercase=False)}
+    global _token_indexer_author_id
+    global _token_indexer_author_position
+    global _token_indexer_venue
+    global _token_indexer_id
+    global _max_sequence_length
+    global _concat_title_abstract
+    global _data_source
+    global _included_text_fields
+
     query_abstract_tokens = _tokenizer.tokenize(paper.get("query_abstract") or "")
     query_title_tokens = _tokenizer.tokenize(paper.get("query_title") or "")
+
     pos_abstract_tokens = _tokenizer.tokenize(paper.get("pos_abstract") or "")
     pos_title_tokens = _tokenizer.tokenize(paper.get("pos_title") or "")
+
     neg_abstract_tokens = _tokenizer.tokenize(paper.get("neg_abstract") or "")
     neg_title_tokens = _tokenizer.tokenize(paper.get("neg_title") or "")
+    
     # remove first and last tokens from each 
     query_abstract_tokens = remove_special_tokens(query_abstract_tokens)
     query_title_tokens = remove_special_tokens(query_title_tokens)
@@ -115,34 +170,52 @@ def get_instance(paper):
     pos_title_tokens = remove_special_tokens(pos_title_tokens)
     neg_abstract_tokens = remove_special_tokens(neg_abstract_tokens)
     neg_title_tokens = remove_special_tokens(neg_title_tokens)
-    
-    _concat_title_abstract = True 
-    if _concat_title_abstract:
-        abstract_delimiter = [Token('[SEP]')] # title [SEP] abstract
-        query_title_tokens = get_text_tokens(query_title_tokens, query_abstract_tokens, abstract_delimiter)
-        pos_title_tokens = get_text_tokens(pos_title_tokens, pos_abstract_tokens, abstract_delimiter)
-        neg_title_tokens = get_text_tokens(neg_title_tokens, neg_abstract_tokens, abstract_delimiter)
 
-    # cut sequence 
-    max_seq_len = 512
-    query_abstract_tokens = query_abstract_tokens[:max_seq_len]
-    query_title_tokens = query_title_tokens[:max_seq_len]
-    pos_abstract_tokens = pos_abstract_tokens[:max_seq_len]
-    pos_title_tokens = pos_title_tokens[:max_seq_len]
-    neg_abstract_tokens = neg_abstract_tokens[:max_seq_len]
-    neg_title_tokens = neg_title_tokens[:max_seq_len]
+    max_seq_len = _max_sequence_length
+    if _max_sequence_length > 0:
+        query_abstract_tokens = query_abstract_tokens[:max_seq_len]
+        query_title_tokens = query_title_tokens[:max_seq_len]
+        pos_abstract_tokens = pos_abstract_tokens[:max_seq_len]
+        pos_title_tokens = pos_title_tokens[:max_seq_len]
+        neg_abstract_tokens = neg_abstract_tokens[:max_seq_len]
+        neg_title_tokens = neg_title_tokens[:max_seq_len]
+
+    query_venue_tokens = remove_special_tokens(_tokenizer.tokenize(NO_VENUE))
+    pos_venue_tokens = remove_special_tokens(_tokenizer.tokenize(NO_VENUE))
+    neg_venue_tokens = remove_special_tokens(_tokenizer.tokenize(NO_VENUE))
 
     fields = {
         "source_title": TextField(query_title_tokens, token_indexers=_token_indexers),
         "pos_title": TextField(pos_title_tokens, token_indexers=_token_indexers),
         "neg_title": TextField(neg_title_tokens, token_indexers=_token_indexers),
-        "source_paper_id": MetadataField(paper['query_paper_id']),
+        "source_venue": TextField(query_venue_tokens, token_indexers=_token_indexer_venue),
+        "pos_venue": TextField(pos_venue_tokens, token_indexers=_token_indexer_venue),
+        "neg_venue": TextField(neg_venue_tokens, token_indexers=_token_indexer_venue),
+        'source_paper_id': MetadataField(paper['query_paper_id']),
         "pos_paper_id": MetadataField(paper['pos_paper_id']),
         "neg_paper_id": MetadataField(paper['neg_paper_id']),
         "source_abstract": TextField(query_abstract_tokens, token_indexers=_token_indexers),
         "pos_abstract": TextField(pos_abstract_tokens, token_indexers=_token_indexers),
         "neg_abstract": TextField(neg_abstract_tokens, token_indexers=_token_indexers)
     }
+
+    source_authors = remove_special_tokens(_tokenizer.tokenize("--no_authors--"))
+    pos_authors = remove_special_tokens(_tokenizer.tokenize("--no_authors--"))
+    neg_authors = remove_special_tokens(_tokenizer.tokenize("--no_authors--"))
+    source_author_positions = remove_special_tokens(_tokenizer.tokenize("--no_positions--"))
+    pos_author_positions = remove_special_tokens(_tokenizer.tokenize("--no_positions--"))
+    neg_author_positions = remove_special_tokens(_tokenizer.tokenize("--no_positions--"))
+
+    fields['source_authors'] = source_authors
+    fields['source_author_positions'] = source_author_positions
+    fields['pos_authors'] = pos_authors
+    fields['pos_author_positions'] = pos_author_positions
+    fields['neg_authors'] = neg_authors
+    fields['neg_author_positions'] = neg_author_positions
+
+    if _data_source:
+        fields["data_source"] = MetadataField(_data_source)
+
     return Instance(fields)
 
 class TrainingInstanceGenerator:
@@ -160,6 +233,7 @@ class TrainingInstanceGenerator:
         self.paper_feature_cache = {}
         self.metadata = metadata
         self.data_source = data_source
+
         self.data = data
 
     def _get_paper_features(self, paper: Optional[dict] = None) -> \
@@ -168,12 +242,19 @@ class TrainingInstanceGenerator:
             paper_id = paper.get('paper_id')
             if paper_id in self.paper_feature_cache:  # This function is being called by the same paper multiple times.
                 return self.paper_feature_cache[paper_id]
-            features = paper.get('abstract'), paper.get('title')
+
+            venue = paper.get('venue') or NO_VENUE
+            year = paper.get('year') or 0
+            body = paper.get('body')
+            authors = paper.get('author-names')
+            author_ids = paper.get('authors')
+            references = paper.get('references')
+            features = paper.get('abstract'), paper.get('title'), venue, year, body, authors, references
             self.paper_feature_cache[paper_id] = features
             return features
         else:
-            return None, None
-        
+            return None, None, None, None, None, None, None
+
     def get_raw_instances(self, query_ids, subset_name=None, n_jobs=10):
         """
         Given query ids, it generates triplets and returns corresponding instances
@@ -212,27 +293,41 @@ class TrainingInstanceGenerator:
                     count_fail += 1
                     continue
 
-                query_abstract, query_title = self._get_paper_features(query_paper)
-                pos_abstract, pos_title  = self._get_paper_features(pos_paper)
-                neg_abstract, neg_title = self._get_paper_features(neg_paper)
+                query_abstract, query_title, query_venue, query_year, query_body, query_authors, query_refs = \
+                    self._get_paper_features(query_paper)
+                pos_abstract, pos_title, pos_venue, pos_year, pos_body, pos_authors, pos_refs = self._get_paper_features(pos_paper)
+                neg_abstract, neg_title, neg_venue, neg_year, neg_body, neg_authors, neg_refs = self._get_paper_features(neg_paper)
 
                 instance = {
                     "query_abstract": query_abstract,
                     "query_title": query_title,
+                    "query_venue": query_venue,
+                    "query_year": query_year,
+                    "query_body": query_body,
+                    "query_authors": query_authors,
                     "query_paper_id": query_paper["paper_id"],
                     "pos_abstract": pos_abstract,
                     "pos_title": pos_title,
+                    "pos_venue": pos_venue,
+                    "pos_year": pos_year,
+                    "pos_body": pos_body,
+                    "pos_authors": pos_authors,
                     "pos_paper_id": pos_paper["paper_id"],
                     "neg_abstract": neg_abstract,
                     "neg_title": neg_title,
-                    "neg_paper_id": neg_paper["paper_id"]
+                    "neg_venue": neg_venue,
+                    "neg_year": neg_year,
+                    "neg_body": neg_body,
+                    "neg_authors": neg_authors,
+                    "neg_paper_id": neg_paper["paper_id"],
+                    "data_source": self.data_source
                 }
                 yield instance
             except KeyError:
                 # if there is no title and abstract skip this triplet
                 count_fail += 1
                 pass
-        logger.info(f"All triplets generated, success rate:{(count_success*100/(count_success+count_fail+0.001)):.2f}%,"
+        logger.info(f"done getting triplets, success rate:{(count_success*100/(count_success+count_fail+0.001)):.2f}%,"
                      f"total: {count_success+count_fail}")
 
 
@@ -250,7 +345,7 @@ def get_instances(data, query_ids_file, metadata, data_source=None, n_jobs=1, n_
         n_jobs_raw: number of jobs to generate raw triplets
         ratio_hard_negatives: how many hard nagatives
         margin_fraction: margin fraction param of triplet generation
-        samples_per_query: how many samples for each query paper
+        samples_per_query: how many smaples for each query paper
 
     Returns:
         List[Instance]
@@ -263,21 +358,23 @@ def get_instances(data, query_ids_file, metadata, data_source=None, n_jobs=1, n_
                                           margin_fraction=margin_fraction, ratio_hard_negatives=ratio_hard_negatives,
                                           samples_per_query=samples_per_query)
 
-    set_values()
+    set_values(max_sequence_length=512,
+               concat_title_abstract=concat_title_abstract,
+               data_source=data_source,
+               included_text_fields=included_text_fields)
 
     query_ids = [line.strip() for line in open(query_ids_file)]
 
     instances_raw = [e for e in generator.get_raw_instances(
         query_ids, subset_name=query_ids_file.split('/')[-1][:-4], n_jobs=n_jobs_raw)]
 
-    logger.info("n_jobs: {}".format(n_jobs))
     if n_jobs == 1:
-        logger.info('Converting raw instances to allennlp instances with n_jobs={}'.format(n_jobs))
+        logger.info(f'converting raw instances to allennlp instances:')
         for e in tqdm.tqdm(instances_raw):
             yield get_instance(e)
 
     else:
-        logger.info(f'Converting raw instances to allennlp instances ({n_jobs} parallel jobs)')
+        logger.info(f'converting raw instances to allennlp instances ({n_jobs} parallel jobs)')
         with Pool(n_jobs) as p:
             instances = list(tqdm.tqdm(p.imap(
                 get_instance, instances_raw)))
@@ -313,9 +410,6 @@ def main(data_files, train_ids, val_ids, test_ids, metadata_file, outdir, n_jobs
         Nothing
             Creates files corresponding to each data file
     """
-    global bert_params
-    logger.info("Setting pretrained_model of bert_params to {}".format(bert_vocab))
-    bert_params['pretrained_model'] = bert_vocab
 
     pathlib.Path(outdir).mkdir(parents=True, exist_ok=True)
     with open(metadata_file) as f_in:
@@ -324,20 +418,17 @@ def main(data_files, train_ids, val_ids, test_ids, metadata_file, outdir, n_jobs
 
     for data_file, train_set, val_set, test_set in zip(data_files, train_ids, val_ids, test_ids):
         logger.info(f'loading data file: {data_file}')
-        data_load_start = time()
         with open(data_file) as f_in:
             data = json.load(f_in)
-        logger.info(f'loaded data file: {data_file} in {time()-data_load_start:.2f} seconds')
         data_source = data_file.split('/')[-1][:-5]  # e.g., coviews_v2012
         if comment:
             data_source += f'-{comment}'
 
         metrics = {}
         for ds_name, ds in zip(('train', 'val', 'test'), (train_set, val_set, test_set)):
-            start_time = time()
-            logger.info(f'Getting instances for `{data_source}` and `{ds_name}` set')
+            logger.info(f'getting instances for `{data_source}` and `{ds_name}` set')
             outfile = f'{outdir}/{data_source}-{ds_name}.p'
-            logger.info(f'Writing pickled output to {outfile}.')
+            logger.info(f'writing output {outfile}')
             with open(outfile, 'wb') as f_in:
                 pickler = pickle.Pickler(f_in)
                 # pickler.fast = True
@@ -358,10 +449,7 @@ def main(data_files, train_ids, val_ids, test_ids, metadata_file, outdir, n_jobs
                     if idx % 2000 == 0:
                         pickler.clear_memo()
             metrics[ds_name] = idx
-            logger.info(f'Finished writing {idx} instances to {outfile}. Time taken: {time()-start_time:.2f} seconds')
-        metrics_output = f'{outdir}/{data_source}-metrics.json' 
-        with open(metrics_output, 'w') as f_out2:
-            logger.info("Writing metrics to file {}".format(metrics_output))
+        with open(f'{outdir}/{data_source}-metrics.json', 'w') as f_out2:
             json.dump(metrics, f_out2, indent=2)
 
 
@@ -385,7 +473,6 @@ if __name__ == '__main__':
                                                                              'possible values: `title`, `abstract`, `authors`')
     args = ap.parse_args()
 
-
     data_file = os.path.join(args.data_dir, 'data.json')
     train_ids = os.path.join(args.data_dir, 'train.txt')
     val_ids = os.path.join(args.data_dir, 'val.txt')
@@ -397,25 +484,8 @@ if __name__ == '__main__':
     init_logger()
     logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
-    print("==="*50)
-    logger.info("All arguments: {}".format(args))
-    logger.info("data_file: {}".format(data_file))
-    logger.info("train_ids: {}".format(train_ids))
-    logger.info("test_ids: {}".format(test_ids))
-    logger.info("val_ids: {}".format(val_ids))
-    logger.info("bert_vocab path: {}".format(args.bert_vocab))
-    logger.info("njobs: {}".format(args.njobs))
-    logger.info("njobs_raw: {}".format(args.njobs_raw))
-    print("==="*50)
-    print("\n\n")
-
-    start = time()
-    logger.info("Starting to create training files... at start time: {}".format(start))
     main([data_file], [train_ids], [val_ids], [test_ids], metadata_file, args.outdir, args.njobs, args.njobs_raw,
          margin_fraction=args.margin_fraction, ratio_hard_negatives=args.ratio_hard_negatives,
          samples_per_query=args.samples_per_query, comment=args.comment, bert_vocab=args.bert_vocab,
          concat_title_abstract=args.concat_title_abstract, included_text_fields=args.included_text_fields
          )
-    
-    end = time()
-    logger.info("Time taken: {} seconds ({} minutes)".format(end-start, round((end-start)/60, 2)))    

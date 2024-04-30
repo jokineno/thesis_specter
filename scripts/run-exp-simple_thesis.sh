@@ -141,7 +141,6 @@ else
     export BERT_VOCAB=$BERT_VOCAB
     export BERT_WEIGHTS=$BERT_WEIGHTS
 fi
-export TOKENIZERS_PARALLELISM=false
 
 
 echo "===========Triggering the python script to start training!!!!==========="

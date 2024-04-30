@@ -96,10 +96,7 @@ class DataReaderFromPickled(DatasetReader):
                                     instance.fields[f'{paper_type}_title'] = abst_field
                                 else:
                                     yield None
-                                # title_tokens = get_text_tokens(query_title_tokens, query_abstract_tokens, abstract_delimiter)
-                                # pos_title_tokens = get_text_tokens(pos_title_tokens, pos_abstract_tokens, abstract_delimiter)
-                                # neg_title_tokens = get_text_tokens(neg_title_tokens, neg_abstract_tokens, abstract_delimiter)
-                                # query_abstract_tokens = pos_abstract_tokens = neg_abstract_tokens = []
+                               
                             for field_type in ['title', 'abstract']:
                                 field = paper_type + '_' + field_type
                                 if instance.fields.get(field):
