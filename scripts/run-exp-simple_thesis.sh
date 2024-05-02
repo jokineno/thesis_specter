@@ -32,19 +32,16 @@ eval set -- "$PARSED"
 # set default args
 NUM_EPOCHS=2
 lazy="true"
-batch_size=2
+batch_size=4
 bert_requires_grad='all'  #'pooler,11,10,9,8,7,6,5,4,3,2,1,0'
 default_lr=2e-5
-
-num_train_instances=680000
-max_seq_len=256
+max_seq_len=126
 
 # ---------------
 
-TRAIN_PATH="data/training-data/train.pkl"
-DEV_PATH="data/training-data/val.pkl"
-BERT_MODEL="bert-pretrained"
-INCLUDE_VENUE="false"
+TRAIN_PATH="thesis_data/preprocessed_demo/train.p"
+DEV_PATH="thesis_data/preprocessed_demo/val.p"
+BERT_MODEL="pretrained_transformer"
 
 # --------------
 
@@ -135,7 +132,6 @@ export TRAINING_DATA_INSTANCES=$num_train_instances
 export BERT_REQUIRES_GRAD=$bert_requires_grad
 export BERT_MODEL=$BERT_MODEL
 export MAX_SEQ_LEN=$max_seq_len
-export INCLUDE_VENUE=$INCLUDE_VENUE
 if [ -z "${BERT_VOCAB+x}" ]
 then
     echo "Bert Weights Not Set"

@@ -1,31 +1,20 @@
-from typing import Dict, Optional, Union
+from typing import Dict, Optional
 
-import numpy
 from allennlp.common.checks import ConfigurationError
 from overrides import overrides
 import torch
 import torch.nn.functional as F
 from torch.nn import Dropout
-from torch.nn.modules.distance import CosineSimilarity
+import torch.nn as nn
 
 from allennlp.data import Vocabulary
-from allennlp.modules import Seq2VecEncoder, Seq2SeqEncoder, TextFieldEmbedder, FeedForward, TimeDistributed, LayerNorm
+from allennlp.modules import Seq2VecEncoder, TextFieldEmbedder, FeedForward, LayerNorm
 from allennlp.models.model import Model
 from allennlp.nn import InitializerApplicator, RegularizerApplicator
 from allennlp.nn import util
-from allennlp.modules.token_embedders import Embedding
-
 import logging
-import contextlib
-
 logging.basicConfig()
 logger = logging.getLogger()
-
-
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-
 
 class TripletLoss(nn.Module):
     """
@@ -88,37 +77,20 @@ class Specter(Model):
     def __init__(self, vocab: Vocabulary,
                  text_field_embedder: TextFieldEmbedder,
                  title_encoder: Seq2VecEncoder,
-                 abstract_encoder: Seq2VecEncoder,
-                 venue_encoder: Seq2VecEncoder,
-                 body_encoder: Seq2VecEncoder = None,
                  predict_mode: bool = False,
-                 author_text_embedder: TextFieldEmbedder = None,
-                 venue_field_embedder: TextFieldEmbedder = None,
-                 author_text_encoder: Seq2VecEncoder = None,
-                 # author_id_embedder: Optional[Embedding] = None,
-                 author_id_embedder: TextFieldEmbedder = None,
-                 # author_position_embedder: Optional[Embedding] = None,
-                 author_position_embedder: TextFieldEmbedder = None,
                  feedforward: FeedForward = None,
-                 author_feedforward: FeedForward = None,
                  initializer: InitializerApplicator = InitializerApplicator(),
                  regularizer: Optional[RegularizerApplicator] = None,
-                 max_num_authors: Optional[int] = 5,
                  dropout: Optional[float] = None,
-                 ignore_authors: Optional[bool] = False,
                  layer_norm: Optional[bool] = True,
                  embedding_layer_norm: Optional[bool] = False,
                  loss_distance: Optional[str] = 'l2-norm',
                  loss_margin: Optional[float] = 1,
                  bert_finetune: Optional[bool] = False,
-                 include_venue: Optional[bool] = False
                  ) -> None:
         super(Specter, self).__init__(vocab, regularizer)
-
         self.text_field_embedder = text_field_embedder
         self.title_encoder = title_encoder
-        self.abstract_encoder = abstract_encoder
-        self.body_encoder = body_encoder
 
         self.predict_mode = predict_mode
 
@@ -133,6 +105,7 @@ class Specter(Model):
             self.layer_norm = LayerNorm(self.feedforward.get_output_dim())
         self.do_layer_norm = layer_norm
 
+        # self.layer_norm_author_embedding = LayerNorm(author_feedforward.get_output_dim())
 
         if embedding_layer_norm:
             self.layer_norm_word_embedding = LayerNorm(self.title_encoder.get_input_dim())
@@ -140,22 +113,19 @@ class Specter(Model):
 
         self.dropout = Dropout()
 
-
+       
         # internal variable showing that the title/abstract should be encoded with a transformer
         # do not change this as it should be by default `false` in this class
         # in the inheriting `PaperRepresentationTransoformer` class it is set to true in the constructor
         # to indicate that the title/abstract should be encoded with a transformer.
         self.tansformer_encoder = False
-
         self.bert_finetune = bert_finetune
-        self.include_venue = include_venue
-
-        self.include_venue = include_venue
-
         initializer(self)
 
     def get_embedding_and_mask(self, text_field, embedder_type='generic'):
+        # text field (tokens) torch tensor with batch_size x seq_len
         if embedder_type == 'generic':
+            # batch_size x seq_len x embedding_dim
             embedded_ = self.text_field_embedder(text_field)
         else:
             raise TypeError(f"Unknown embedder type passed: {embedder_type}")
@@ -170,16 +140,12 @@ class Specter(Model):
                     body: torch.Tensor,
                     author_text: torch.Tensor):
         """ Embed the paper"""
-
-        # in finetuning mode, title and abstract are one long sequence.
-        embedded_title, title_mask = self.get_embedding_and_mask(title)
+        embedded_title, title_mask = self.get_embedding_and_mask(title, embedder_type='generic')
         encoded_title = self.title_encoder(embedded_title, title_mask)
 
         if self.dropout:
             encoded_title = self.dropout(encoded_title)
-
         paper_embedding = encoded_title
-
         return paper_embedding
 
 

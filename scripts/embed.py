@@ -35,7 +35,7 @@ def main():
 
     args = parser.parse_args()
 
-    overrides = f"{{'model':{{'predict_mode':'true','include_venue':'false'}},'dataset_reader':{{'type':'specter_data_reader','predict_mode':'true','paper_features_path':'{args.metadata}','included_text_fields': '{args.included_text_fields}'}},'vocabulary':{{'directory_path':'{args.vocab_dir}'}}}}"
+    overrides = f"{{'model':{{'predict_mode':'true'}},'dataset_reader':{{'type':'specter_data_reader','predict_mode':'true','paper_features_path':'{args.metadata}','included_text_fields': '{args.included_text_fields}'}},'vocabulary':{{'directory_path':'{args.vocab_dir}'}}}}"
 
     command = [
         'python',

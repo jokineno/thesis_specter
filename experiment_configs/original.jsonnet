@@ -16,7 +16,7 @@ local BERT_REQUIRES_GRAD=std.extVar("BERT_REQUIRES_GRAD");
 local VOCAB_PATH=std.extVar("VOCAB_DIR");
 local TRAIN_DATA_INSTANCES=std.parseInt(std.extVar("TRAINING_DATA_INSTANCES"));
 local MAX_SEQ_LEN=std.parseInt(std.extVar("MAX_SEQ_LEN"));
-local INCLUDE_VENUE=stringToBool(std.extVar('INCLUDE_VENUE'));
+//local INCLUDE_VENUE=false;
 // local CUDA_DEVICE  = [std.parseInt(x) for x in std.split(std.extVar("CUDA_DEVICE"), ' ')];
 local CUDA_DEVICE = std.extVar("CUDA_DEVICE");
 {
@@ -24,21 +24,18 @@ local CUDA_DEVICE = std.extVar("CUDA_DEVICE");
         "type": "specter_data_reader_pickled",
         "concat_title_abstract": true,
         "lazy": true,
-        "max_sequence_length": 512,
+        "max_sequence_length": MAX_SEQ_LEN,
         "token_indexers": {
-            "bert": {
-                "type": BERT_MODEL,
-                "do_lowercase": true,
-                "truncate_long_sequences": true,
-                [if BERT_MODEL == 'bert-pretrained' && BERT_WEIGHTS != 'bert-pretrained' then "pretrained_model"]: BERT_VOCAB,
-                [if BERT_MODEL == 'pretrained_transformer' then "model_name"]: BERT_WEIGHTS,
+             "bert": {
+                "type": "pretrained_transformer",
+                "do_lowercase": false,
+                "model_name": "TurkuNLP/bert-base-finnish-cased-v1",
             }
         },
-        "word_splitter": "bert-basic"
     },
     "iterator": {
         "type": "basic",
-        "batch_size": 4,
+        "batch_size": BATCH_SIZE,
         "cache_instances": true
     },
     "model": {
@@ -65,28 +62,17 @@ local CUDA_DEVICE = std.extVar("CUDA_DEVICE");
         "predict_mode": false,
         "text_field_embedder": {
             "allow_unmatched_keys": true,
-            [if BERT_MODEL != 'pretrained_transformer' then "embedder_to_indexer_map"]: {
-                "bert": [
-                    "bert",
-                    "bert-offsets"
-                ],
-                "tokens": [
-                    "tokens"
-                ]
-            },
             "token_embedders": {
                 "bert": {
-                    "type": BERT_MODEL,
-                    [if BERT_MODEL == 'bert-pretrained' then "pretrained_model"]: BERT_WEIGHTS,
-                    [if BERT_MODEL == 'pretrained_transformer' then "model_name"]: BERT_WEIGHTS,
-                    "requires_grad": BERT_REQUIRES_GRAD
+                    "type": "pretrained_transformer",
+                    "model_name": "TurkuNLP/bert-base-finnish-cased-v1"
                 }
             }
         },
         "title_encoder": {
             "type": "boe",
             "embedding_dim": 768
-        }
+        },
     },
     "train_data_path": TRAIN_PATH,
     "validation_data_path": DEV_PATH,
@@ -100,12 +86,12 @@ local CUDA_DEVICE = std.extVar("CUDA_DEVICE");
         "learning_rate_scheduler": {
             "type": "slanted_triangular",
             "cut_frac": 0.1,
-            "num_epochs": 2,
+            "num_epochs": NUM_EPOCHS,
             "num_steps_per_epoch": TRAIN_DATA_INSTANCES / 32, 
         },
         "min_delta": "0",
         "model_save_interval": 10000,
-        "num_epochs": 2,
+        "num_epochs": NUM_EPOCHS,
         "optimizer": {
             "type": "bert_adam",
             "lr": "3e-5",
@@ -131,6 +117,7 @@ local CUDA_DEVICE = std.extVar("CUDA_DEVICE");
         "validation_metric": "-loss"
     },
     "vocabulary": {
-        "directory_path": VOCAB_PATH
+        "type": "from_pretrained_transformer",
+        "model_name": "TurkuNLP/bert-base-finnish-cased-v1"
     }
 }

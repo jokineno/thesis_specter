@@ -15,13 +15,13 @@ import dill
 from allennlp.data import TokenIndexer, Tokenizer
 from allennlp.common import Tqdm
 from allennlp.common.checks import ConfigurationError
-from numpy.compat import os_PathLike
 from overrides import overrides
 from allennlp.data.dataset_readers.dataset_reader import DatasetReader, _LazyInstances
-from allennlp.data.fields import LabelField, TextField, MultiLabelField, ListField, ArrayField, MetadataField
+from allennlp.data.fields import TextField, ArrayField, MetadataField
 from allennlp.data.instance import Instance
 from allennlp.data.tokenizers import Tokenizer, WordTokenizer
-from allennlp.data.token_indexers import TokenIndexer, SingleIdTokenIndexer, PretrainedBertIndexer
+from allennlp.data.token_indexers import TokenIndexer, SingleIdTokenIndexer, PretrainedBertIndexer, PretrainedTransformerIndexer 
+from allennlp.data.tokenizers.pretrained_transformer_tokenizer import PretrainedTransformerTokenizer
 from allennlp.data.tokenizers.word_splitter import WordSplitter, SimpleWordSplitter, BertBasicWordSplitter
 from allennlp.data.tokenizers.token import Token
 from specter.data_utils.create_training_files import get_text_tokens
@@ -31,8 +31,6 @@ from specter.data_utils.triplet_sampling import TripletGenerator
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 # to avoid empty embedding lookup, we need a placeholder to replace no-venue cases
-NO_VENUE_TEXT = '--no_venue--'
-
 
 @DatasetReader.register("specter_data_reader_pickled")
 class DataReaderFromPickled(DatasetReader):
@@ -72,12 +70,6 @@ class DataReaderFromPickled(DatasetReader):
             while True:
                 try:
                     instance = unpickler.load()
-                    # compatibility with old models:
-                    # for field in instance.fields:
-                    #     if hasattr(instance.fields[field], '_token_indexers') and 'bert' in instance.fields[field]._token_indexers:
-                    #         if not hasattr(instance.fields['source_title']._token_indexers['bert'], '_truncate_long_sequences'):
-                    #             instance.fields[field]._token_indexers['bert']._truncate_long_sequences = True
-                    #             instance.fields[field]._token_indexers['bert']._token_min_padding_length = 0
                     if self.max_sequence_length:
                         for paper_type in ['source', 'pos', 'neg']:
                             if self._concat_title_abstract:
@@ -85,6 +77,7 @@ class DataReaderFromPickled(DatasetReader):
                                 title_field = instance.fields.get(f'{paper_type}_title')
                                 abst_field = instance.fields.get(f'{paper_type}_abstract')
                                 if title_field:
+                                    tokens = [Token('[CLS]')]
                                     tokens.extend(title_field.tokens)
                                 if tokens:
                                     tokens.extend([Token('[SEP]')])
@@ -98,16 +91,14 @@ class DataReaderFromPickled(DatasetReader):
                                     instance.fields[f'{paper_type}_title'] = abst_field
                                 else:
                                     yield None
-                                # title_tokens = get_text_tokens(query_title_tokens, query_abstract_tokens, abstract_delimiter)
-                                # pos_title_tokens = get_text_tokens(pos_title_tokens, pos_abstract_tokens, abstract_delimiter)
-                                # neg_title_tokens = get_text_tokens(neg_title_tokens, neg_abstract_tokens, abstract_delimiter)
-                                # query_abstract_tokens = pos_abstract_tokens = neg_abstract_tokens = []
+                               
                             for field_type in ['title', 'abstract']:
                                 field = paper_type + '_' + field_type
                                 if instance.fields.get(field):
-                                    instance.fields[field].tokens = instance.fields[field].tokens[:self.max_sequence_length]
+                                    instance.fields[field].tokens = instance.fields[field].tokens[:self.max_sequence_length - 1] + [Token('[SEP]')]
                                 if field_type == 'abstract' and self._concat_title_abstract:
                                     instance.fields.pop(field, None)
+                    
                     yield instance
                 except EOFError:
                     break

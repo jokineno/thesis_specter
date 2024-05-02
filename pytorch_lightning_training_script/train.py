@@ -94,7 +94,6 @@ class DataReaderFromPickled(DatasetReader):
         Args:
             file_path: path to the pickled instances
         """
-        print("[*] Reading instances from pickle file: %s" % file_path)
         with open(file_path, 'rb') as f_in:
             unpickler = pickle.Unpickler(f_in)
             while True:
@@ -141,8 +140,6 @@ class DataReaderFromPickled(DatasetReader):
                 except EOFError:
                     break
 
-        print("[*] Instances read successfully...")
-
 
 class IterableDataSetMultiWorker(IterableDataset):
     def __init__(self, file_path, tokenizer, size, block_size=100):
@@ -154,8 +151,6 @@ class IterableDataSetMultiWorker(IterableDataset):
 
     def __iter__(self):
         worker_info = torch.utils.data.get_worker_info()
-        print(f"iter_end set to {self.size}")
-        t = time.time()
         if worker_info is None:
             iter_end = self.size
             for data_instance in itertools.islice(self.data_instances, iter_end):
@@ -176,8 +171,6 @@ class IterableDataSetMultiWorker(IterableDataset):
                     i = i + 1
                     data_input = self.ai2_to_transformers(data_instance, self.tokenizer)
                     yield data_input
-
-        print(f"Time taken to iterate through {self.size} instances: {time.time() - t}")
 
 
 

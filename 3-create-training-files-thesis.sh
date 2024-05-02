@@ -45,7 +45,6 @@ else
     --njobs_raw 12
   echo "Done. See results is thesis_data/preprocessed_demo/"
 
-  cp -v thesis_data/preprocessed_demo/* pytorch_lightning_training_script/data/
 fi
 
 echo "Done. Exiting.."
