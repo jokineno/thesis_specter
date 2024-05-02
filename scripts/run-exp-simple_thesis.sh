@@ -35,15 +35,13 @@ lazy="true"
 batch_size=4
 bert_requires_grad='all'  #'pooler,11,10,9,8,7,6,5,4,3,2,1,0'
 default_lr=2e-5
-
-num_train_instances=500
-max_seq_len=256
+max_seq_len=126
 
 # ---------------
 
 TRAIN_PATH="thesis_data/preprocessed_demo/train.p"
 DEV_PATH="thesis_data/preprocessed_demo/val.p"
-BERT_MODEL="bert-pretrained"
+BERT_MODEL="pretrained_transformer"
 
 # --------------
 

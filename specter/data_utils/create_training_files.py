@@ -379,7 +379,7 @@ def get_instances(data, query_ids_file, metadata, data_source=None, n_jobs=1, n_
                                           margin_fraction=margin_fraction, ratio_hard_negatives=ratio_hard_negatives,
                                           samples_per_query=samples_per_query)
 
-    set_values(max_sequence_length=512,
+    set_values(max_sequence_length=126,
                concat_title_abstract=concat_title_abstract,
                data_source=data_source,
                included_text_fields=included_text_fields)
@@ -446,7 +446,7 @@ def main(data_files, train_ids, val_ids, test_ids, metadata_file, outdir, n_jobs
             data_source += f'-{comment}'
 
         metrics = {}
-        for ds_name, ds in zip(('train', 'val', 'test'), (train_set, val_set, test_set)):
+        for ds_name, ds in zip(('train', 'val'), (train_set, val_set)):
             logger.info(f'getting instances for `{data_source}` and `{ds_name}` set')
             outfile = f'{outdir}/{data_source}-{ds_name}.p'
             logger.info(f'writing output {outfile}')

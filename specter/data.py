@@ -70,12 +70,6 @@ class DataReaderFromPickled(DatasetReader):
             while True:
                 try:
                     instance = unpickler.load()
-                    # compatibility with old models:
-                    # for field in instance.fields:
-                    #     if hasattr(instance.fields[field], '_token_indexers') and 'bert' in instance.fields[field]._token_indexers:
-                    #         if not hasattr(instance.fields['source_title']._token_indexers['bert'], '_truncate_long_sequences'):
-                    #             instance.fields[field]._token_indexers['bert']._truncate_long_sequences = True
-                    #             instance.fields[field]._token_indexers['bert']._token_min_padding_length = 0
                     if self.max_sequence_length:
                         for paper_type in ['source', 'pos', 'neg']:
                             if self._concat_title_abstract:
@@ -103,6 +97,7 @@ class DataReaderFromPickled(DatasetReader):
                                     instance.fields[field].tokens = instance.fields[field].tokens[:self.max_sequence_length]
                                 if field_type == 'abstract' and self._concat_title_abstract:
                                     instance.fields.pop(field, None)
+                    
                     yield instance
                 except EOFError:
                     break

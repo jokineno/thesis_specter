@@ -89,13 +89,6 @@ class Specter(Model):
                  bert_finetune: Optional[bool] = False,
                  ) -> None:
         super(Specter, self).__init__(vocab, regularizer)
-        print("\n"*5)
-        print("=====*****INITIALIZING SPECTER****======")
-        print("vocab", vocab, type(vocab))
-        print("text_field_embedder", text_field_embedder, type(text_field_embedder))
-        print("title_encoder", title_encoder, type(title_encoder))
-        print("feedforward", feedforward, type(feedforward))
-        print("\n"*5)
         self.text_field_embedder = text_field_embedder
         self.title_encoder = title_encoder
 
@@ -130,7 +123,9 @@ class Specter(Model):
         initializer(self)
 
     def get_embedding_and_mask(self, text_field, embedder_type='generic'):
+        # text field (tokens) torch tensor with batch_size x seq_len
         if embedder_type == 'generic':
+            # batch_size x seq_len x embedding_dim
             embedded_ = self.text_field_embedder(text_field)
         else:
             raise TypeError(f"Unknown embedder type passed: {embedder_type}")
@@ -145,17 +140,8 @@ class Specter(Model):
                     body: torch.Tensor,
                     author_text: torch.Tensor):
         """ Embed the paper"""
-
-        # in finetuning mode, title and abstract are one long sequence.
-        #print("=============_embed_paper====================")
-        #print("SHAPE OF TITLE(bert indexer)",title['bert'].shape)
         embedded_title, title_mask = self.get_embedding_and_mask(title, embedder_type='generic')
-        #print("\n"*3)
-        #print("embedded_title", embedded_title, type(embedded_title), embedded_title.shape)
-        #print("title_mask", title_mask, type(title_mask), title_mask.shape)
         encoded_title = self.title_encoder(embedded_title, title_mask)
-        #print("\n"*3)
-        #print("encoded_title", encoded_title, type(encoded_title), encoded_title.shape)
 
         if self.dropout:
             encoded_title = self.dropout(encoded_title)
