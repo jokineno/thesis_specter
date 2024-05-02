@@ -77,6 +77,7 @@ class DataReaderFromPickled(DatasetReader):
                                 title_field = instance.fields.get(f'{paper_type}_title')
                                 abst_field = instance.fields.get(f'{paper_type}_abstract')
                                 if title_field:
+                                    tokens = [Token('[CLS]')]
                                     tokens.extend(title_field.tokens)
                                 if tokens:
                                     tokens.extend([Token('[SEP]')])
@@ -94,7 +95,7 @@ class DataReaderFromPickled(DatasetReader):
                             for field_type in ['title', 'abstract']:
                                 field = paper_type + '_' + field_type
                                 if instance.fields.get(field):
-                                    instance.fields[field].tokens = instance.fields[field].tokens[:self.max_sequence_length]
+                                    instance.fields[field].tokens = instance.fields[field].tokens[:self.max_sequence_length - 1] + [Token('[SEP]')]
                                 if field_type == 'abstract' and self._concat_title_abstract:
                                     instance.fields.pop(field, None)
                     
