@@ -22,7 +22,6 @@ from allennlp.data.tokenizers.word_splitter import WordSplitter, SimpleWordSplit
 from allennlp.training.util import datasets_from_params
 
 from multiprocessing import Pool
-import multiprocessing
 
 from specter.data_utils import triplet_sampling_parallel
 
@@ -47,7 +46,8 @@ def init_logger(*, fn=None):
 
 
 NO_VENUE = '--no_venue--'
-
+NO_AUTHORS = "--no-authors--"
+NO_AUTHOR_POSITIONS = '--n  '
 
 # ---------------
 # instead of a class with its own constructor we define global variables
@@ -69,29 +69,6 @@ _included_text_fields = None
 
 MAX_NUM_AUTHORS = 5
 # ----------------
-
-def _get_author_field(authors: List[str]):
-    """
-    Converts a list of author ids to their corresponding label and positions
-    Args:
-        authors: list of authors
-
-    Returns:
-        authors and their positions
-    """
-    global _token_indexer_author_id
-    global _token_indexer_author_position
-    global _tokenizer
-    authors = ' '.join(authors)
-    authors = remove_special_tokens(_tokenizer.tokenize(authors))
-    if len(authors) > MAX_NUM_AUTHORS:
-        authors = authors[:MAX_NUM_AUTHORS - 1] + [authors[-1]]
-    author_field = TextField(authors, token_indexers=_token_indexer_author_id)
-
-    author_positions = ' '.join([f'{i:02}' for i in range(len(authors))])
-    author_positions_tokens = remove_special_tokens(_tokenizer.tokenize(author_positions))
-    position_field = TextField(author_positions_tokens, token_indexers=_token_indexer_author_position)
-    return author_field, position_field
 
 
 def set_values(max_sequence_length: Optional[int] = -1,
@@ -126,7 +103,6 @@ def set_values(max_sequence_length: Optional[int] = -1,
     _data_source = data_source
     _included_text_fields = included_text_fields
 
-
 def get_text_tokens(title_tokens, abstract_tokens, abstract_delimiter):
     """ concats title and abstract using a delimiter"""
     if title_tokens[-1] != Token('.'):
@@ -143,7 +119,7 @@ def remove_special_tokens(tokens):
     return tokens 
 
 
-def _get_author_field(authors: List[str]):
+def _get_author_field():
     """
     Converts a list of author ids to their corresponding label and positions
     Args:
@@ -155,13 +131,9 @@ def _get_author_field(authors: List[str]):
     global _token_indexer_author_id
     global _token_indexer_author_position
     global _tokenizer
-    authors = ' '.join(authors)
-    authors = remove_special_tokens(_tokenizer.tokenize(authors))
-    if len(authors) > MAX_NUM_AUTHORS:
-        authors = authors[:MAX_NUM_AUTHORS - 1] + [authors[-1]]
+    authors = remove_special_tokens(_tokenizer.tokenize(NO_AUTHORS))
     author_field = TextField(authors, token_indexers=_token_indexer_author_id)
-    author_positions = ' '.join([f'{i:02}' for i in range(len(authors))])
-    author_positions_tokens = remove_special_tokens(_tokenizer.tokenize(author_positions))
+    author_positions_tokens = remove_special_tokens(_tokenizer.tokenize(NO_AUTHOR_POSITIONS))
     position_field = TextField(author_positions_tokens, token_indexers=_token_indexer_author_position)
     return author_field, position_field
 
@@ -224,9 +196,9 @@ def get_instance(paper):
     }
 
 
-    source_authors, source_author_positions = _get_author_field([])
-    pos_authors, pos_author_positions = _get_author_field([])
-    neg_authors, neg_author_positions = _get_author_field([])
+    source_authors, source_author_positions = _get_author_field()
+    pos_authors, pos_author_positions = _get_author_field()
+    neg_authors, neg_author_positions = _get_author_field()
     fields['source_authors'] = source_authors
     fields['source_author_positions'] = source_author_positions
     fields['pos_authors'] = pos_authors
@@ -379,7 +351,7 @@ def get_instances(data, query_ids_file, metadata, data_source=None, n_jobs=1, n_
                                           margin_fraction=margin_fraction, ratio_hard_negatives=ratio_hard_negatives,
                                           samples_per_query=samples_per_query)
 
-    set_values(max_sequence_length=126,
+    set_values(max_sequence_length=128,
                concat_title_abstract=concat_title_abstract,
                data_source=data_source,
                included_text_fields=included_text_fields)

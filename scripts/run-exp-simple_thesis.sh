@@ -35,7 +35,7 @@ lazy="true"
 batch_size=4
 bert_requires_grad='all'  #'pooler,11,10,9,8,7,6,5,4,3,2,1,0'
 default_lr=2e-5
-max_seq_len=126
+max_seq_len=128
 
 # ---------------
 
